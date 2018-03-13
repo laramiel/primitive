@@ -16,18 +16,25 @@ type Polygon struct {
 }
 
 func NewRandomPolygon(worker *Worker, order int, convex bool) *Polygon {
-	rnd := worker.Rnd
-	x := make([]float64, order)
-	y := make([]float64, order)
-	x[0] = rnd.Float64() * float64(worker.W)
-	y[0] = rnd.Float64() * float64(worker.H)
-	for i := 1; i < order; i++ {
-		x[i] = x[0] + rnd.Float64()*40 - 20
-		y[i] = y[0] + rnd.Float64()*40 - 20
-	}
-	p := &Polygon{worker, order, convex, x, y}
-	p.Mutate()
+	p := &Polygon{}
+	p.Order = order
+	p.Convex = convex
+	p.Init(worker)
 	return p
+}
+
+func (p *Polygon) Init(worker *Worker) {
+	rnd := worker.Rnd
+	p.Worker = worker
+	p.X = make([]float64, p.Order)
+	p.Y = make([]float64, p.Order)
+	p.X[0] = rnd.Float64() * float64(worker.W)
+	p.Y[0] = rnd.Float64() * float64(worker.H)
+	for i := 1; i < p.Order; i++ {
+		p.X[i] = p.X[0] + rnd.Float64()*40 - 20
+		p.Y[i] = p.Y[0] + rnd.Float64()*40 - 20
+	}
+	p.Mutate()
 }
 
 func (p *Polygon) Draw(dc *gg.Context, scale float64) {

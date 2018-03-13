@@ -15,16 +15,21 @@ type Triangle struct {
 }
 
 func NewRandomTriangle(worker *Worker) *Triangle {
-	rnd := worker.Rnd
-	x1 := rnd.Intn(worker.W)
-	y1 := rnd.Intn(worker.H)
-	x2 := x1 + rnd.Intn(31) - 15
-	y2 := y1 + rnd.Intn(31) - 15
-	x3 := x1 + rnd.Intn(31) - 15
-	y3 := y1 + rnd.Intn(31) - 15
-	t := &Triangle{worker, x1, y1, x2, y2, x3, y3}
-	t.Mutate()
+	t := &Triangle{}
+	t.Init(worker)
 	return t
+}
+
+func (t *Triangle) Init(worker *Worker) {
+	rnd := worker.Rnd
+	t.Worker = worker
+	t.X1 = rnd.Intn(worker.W)
+	t.Y1 = rnd.Intn(worker.H)
+	t.X2 = t.X1 + rnd.Intn(31) - 15
+	t.Y2 = t.Y1 + rnd.Intn(31) - 15
+	t.X3 = t.X1 + rnd.Intn(31) - 15
+	t.Y3 = t.Y1 + rnd.Intn(31) - 15
+	t.Mutate()
 }
 
 func (t *Triangle) Draw(dc *gg.Context, scale float64) {

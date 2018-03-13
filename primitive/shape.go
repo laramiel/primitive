@@ -19,6 +19,7 @@ const (
 	ShapeTypeEllipse
 	ShapeTypeCircle
 	ShapeTypeRotatedRectangle
+	ShapeTypeLine
 	ShapeTypeQuadratic
 	ShapeTypeRotatedEllipse
 	ShapeTypePolygon

@@ -175,6 +175,7 @@ func uniformRGBA(r image.Rectangle, c color.Color) *image.RGBA {
 	return im
 }
 
+// MostFrequentImageColor returns the average color in the image.
 func AverageImageColor(im image.Image) color.NRGBA {
 	rgba := imageToRGBA(im)
 	size := rgba.Bounds().Size()
@@ -192,4 +193,36 @@ func AverageImageColor(im image.Image) color.NRGBA {
 	g /= w * h
 	b /= w * h
 	return color.NRGBA{uint8(r), uint8(g), uint8(b), 255}
+}
+
+// MostFrequentImageColor returns the most-frequently used color in the image.
+// NOTE: The low-order bits are masked off.
+func MostFrequentImageColor(im image.Image) color.NRGBA {
+	const mask = 0xff - 0x03
+	rgba := imageToRGBA(im)
+	size := rgba.Bounds().Size()
+	w, h := size.X, size.Y
+
+	frequency := make(map[color.RGBA]int)
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			c := rgba.RGBAAt(x, y)
+			c.A = 0
+			// discard low bits.
+			c.R &= mask
+			c.G &= mask
+			c.B &= mask
+			frequency[c]++
+		}
+	}
+
+	var best color.RGBA
+	m := 0
+	for k, v := range frequency {
+		if v > m {
+			best = k
+			m = v
+		}
+	}
+	return color.NRGBA{best.R, best.G, best.B, 255}
 }

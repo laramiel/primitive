@@ -9,10 +9,11 @@ import (
 )
 
 type Ellipse struct {
-	Worker *Worker
-	X, Y   int
-	Rx, Ry int
-	Circle bool
+	Worker      *Worker
+	X, Y        int
+	Rx, Ry      int
+	Circle      bool
+	SmallCircle bool
 }
 
 func NewRandomEllipse(worker *Worker) *Ellipse {
@@ -21,7 +22,7 @@ func NewRandomEllipse(worker *Worker) *Ellipse {
 	y := rnd.Intn(worker.H)
 	rx := rnd.Intn(32) + 1
 	ry := rnd.Intn(32) + 1
-	return &Ellipse{worker, x, y, rx, ry, false}
+	return &Ellipse{worker, x, y, rx, ry, false, false}
 }
 
 func NewRandomCircle(worker *Worker) *Ellipse {
@@ -29,7 +30,14 @@ func NewRandomCircle(worker *Worker) *Ellipse {
 	x := rnd.Intn(worker.W)
 	y := rnd.Intn(worker.H)
 	r := rnd.Intn(32) + 1
-	return &Ellipse{worker, x, y, r, r, true}
+	return &Ellipse{worker, x, y, r, r, true, false}
+}
+
+func NewRandomFixedCircle(worker *Worker, r int) *Ellipse {
+	rnd := worker.Rnd
+	x := rnd.Intn(worker.W)
+	y := rnd.Intn(worker.H)
+	return &Ellipse{worker, x, y, r, r, true, true}
 }
 
 func (c *Ellipse) Draw(dc *gg.Context, scale float64) {
@@ -52,19 +60,24 @@ func (c *Ellipse) Mutate() {
 	w := c.Worker.W
 	h := c.Worker.H
 	rnd := c.Worker.Rnd
-	switch rnd.Intn(3) {
-	case 0:
+	if c.SmallCircle {
 		c.X = clampInt(c.X+int(rnd.NormFloat64()*16), 0, w-1)
 		c.Y = clampInt(c.Y+int(rnd.NormFloat64()*16), 0, h-1)
-	case 1:
-		c.Rx = clampInt(c.Rx+int(rnd.NormFloat64()*16), 1, w-1)
-		if c.Circle {
-			c.Ry = c.Rx
-		}
-	case 2:
-		c.Ry = clampInt(c.Ry+int(rnd.NormFloat64()*16), 1, w-1)
-		if c.Circle {
-			c.Rx = c.Ry
+	} else {
+		switch rnd.Intn(3) {
+		case 0:
+			c.X = clampInt(c.X+int(rnd.NormFloat64()*16), 0, w-1)
+			c.Y = clampInt(c.Y+int(rnd.NormFloat64()*16), 0, h-1)
+		case 1:
+			c.Rx = clampInt(c.Rx+int(rnd.NormFloat64()*16), 1, w-1)
+			if c.Circle {
+				c.Ry = c.Rx
+			}
+		case 2:
+			c.Ry = clampInt(c.Ry+int(rnd.NormFloat64()*16), 1, w-1)
+			if c.Circle {
+				c.Rx = c.Ry
+			}
 		}
 	}
 }

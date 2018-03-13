@@ -14,20 +14,27 @@ type Quadratic struct {
 	X2, Y2 float64
 	X3, Y3 float64
 	Width  float64
+    MaxLineWidth float64
 }
 
 func NewRandomQuadratic(worker *Worker) *Quadratic {
-	rnd := worker.Rnd
-	x1 := rnd.Float64() * float64(worker.W)
-	y1 := rnd.Float64() * float64(worker.H)
-	x2 := x1 + rnd.Float64()*40 - 20
-	y2 := y1 + rnd.Float64()*40 - 20
-	x3 := x2 + rnd.Float64()*40 - 20
-	y3 := y2 + rnd.Float64()*40 - 20
-	width := 1.0 / 2
-	q := &Quadratic{worker, x1, y1, x2, y2, x3, y3, width}
-	q.Mutate()
+	q := &Quadratic{}
+	q.MaxLineWidth = 1.0 / 2
+	q.Init(worker)
 	return q
+}
+
+func (q *Quadratic) Init(worker *Worker) {	
+	rnd := worker.Rnd
+	q.Worker = worker
+	q.X1 = rnd.Float64() * float64(worker.W)
+	q.Y1 = rnd.Float64() * float64(worker.H)
+	q.X2 = q.X1 + rnd.Float64()*40 - 20
+	q.Y2 = q.Y1 + rnd.Float64()*40 - 20
+	q.X3 = q.X2 + rnd.Float64()*40 - 20
+	q.Y3 = q.Y2 + rnd.Float64()*40 - 20
+	q.Width = 1.0 / 2
+	q.Mutate()
 }
 
 func (q *Quadratic) Draw(dc *gg.Context, scale float64) {
@@ -56,7 +63,7 @@ func (q *Quadratic) Mutate() {
 	h := q.Worker.H
 	rnd := q.Worker.Rnd
 	for {
-		switch rnd.Intn(3) {
+		switch rnd.Intn(4) {
 		case 0:
 			q.X1 = clamp(q.X1+rnd.NormFloat64()*16, -m, float64(w-1+m))
 			q.Y1 = clamp(q.Y1+rnd.NormFloat64()*16, -m, float64(h-1+m))
@@ -67,7 +74,9 @@ func (q *Quadratic) Mutate() {
 			q.X3 = clamp(q.X3+rnd.NormFloat64()*16, -m, float64(w-1+m))
 			q.Y3 = clamp(q.Y3+rnd.NormFloat64()*16, -m, float64(h-1+m))
 		case 3:
-			q.Width = clamp(q.Width+rnd.NormFloat64(), 1, 16)
+			if q.Width != q.MaxLineWidth {
+			q.Width = clamp(q.Width+rnd.NormFloat64(), 0.1, q.MaxLineWidth)
+			}
 		}
 		if q.Valid() {
 			break

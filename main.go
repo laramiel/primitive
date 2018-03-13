@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fogleman/primitive/primitive"
+	"github.com/laramiel/primitive/primitive"
 	"github.com/nfnt/resize"
 )
 
@@ -29,6 +29,7 @@ var (
 	Nth        int
 	Repeat     int
 	V, VV      bool
+	ZLevels    int // TODO
 )
 
 type flagArray []string
@@ -68,8 +69,9 @@ func init() {
 	flag.StringVar(&Background, "bg", "", "background color (hex)")
 	flag.IntVar(&Alpha, "a", 128, "alpha value")
 	flag.IntVar(&InputSize, "r", 256, "resize large input images to this size")
+	flag.IntVar(&ZLevels, "z", 1, "Maximum z-index")
 	flag.IntVar(&OutputSize, "s", 1024, "output image size")
-	flag.IntVar(&Mode, "m", 1, "0=combo 1=triangle 2=rect 3=ellipse 4=circle 5=rotatedrect 6=beziers 7=rotatedellipse 8=polygon")
+	flag.IntVar(&Mode, "m", 1, "0=combo 1=triangle 2=rect 3=ellipse 4=circle 5=rotatedrect 6=line 7=beziers 8=rotatedellipse 9=polygon")
 	flag.IntVar(&Workers, "j", 0, "number of parallel workers (default uses all cores)")
 	flag.IntVar(&Nth, "nth", 1, "save every Nth frame (put \"%d\" in path)")
 	flag.IntVar(&Repeat, "rep", 0, "add N extra shapes per iteration with reduced search")
@@ -148,6 +150,8 @@ func main() {
 	var bg primitive.Color
 	if Background == "" {
 		bg = primitive.MakeColor(primitive.AverageImageColor(input))
+	} else if Background == "top" {
+		bg = primitive.MakeColor(primitive.MostFrequentImageColor(input))
 	} else {
 		bg = primitive.MakeHexColor(Background)
 	}

@@ -19,6 +19,7 @@ type Worker struct {
 	Rnd        *rand.Rand
 	Score      float64
 	Counter    int
+	MinZ, MaxZ         int
 }
 
 func NewWorker(target *image.RGBA) *Worker {
@@ -27,6 +28,8 @@ func NewWorker(target *image.RGBA) *Worker {
 	worker := Worker{}
 	worker.W = w
 	worker.H = h
+	worker.MinZ = 1
+	worker.MaxZ = 1
 	worker.Target = target
 	worker.Buffer = image.NewRGBA(target.Bounds())
 	worker.Rasterizer = raster.NewRasterizer(w, h)
@@ -84,6 +87,14 @@ func (worker *Worker) BestRandomState(t ShapeType, a, n int) *State {
 	return bestState
 }
 
+func (worker *Worker) RandomZ() int {
+	z := 0
+	if worker.MaxZ > worker.MinZ {
+		z = worker.Rnd.Intn(worker.MaxZ - worker.MinZ)
+	}
+	return worker.MinZ + z
+}
+
 func (worker *Worker) RandomState(t ShapeType, a int) *State {
 	switch t {
 	default:
@@ -98,6 +109,8 @@ func (worker *Worker) RandomState(t ShapeType, a int) *State {
 		return NewState(worker, NewRandomCircle(worker), a)
 	case ShapeTypeRotatedRectangle:
 		return NewState(worker, NewRandomRotatedRectangle(worker), a)
+	case ShapeTypeLine:
+		return NewState(worker, NewRandomLine(worker), a)
 	case ShapeTypeQuadratic:
 		return NewState(worker, NewRandomQuadratic(worker), a)
 	case ShapeTypeRotatedEllipse:

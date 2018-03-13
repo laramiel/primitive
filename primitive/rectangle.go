@@ -14,12 +14,18 @@ type Rectangle struct {
 }
 
 func NewRandomRectangle(worker *Worker) *Rectangle {
+	r := &Rectangle{}
+	r.Init(worker)
+	return r
+}
+
+func (r *Rectangle) Init(worker *Worker) {
 	rnd := worker.Rnd
-	x1 := rnd.Intn(worker.W)
-	y1 := rnd.Intn(worker.H)
-	x2 := clampInt(x1+rnd.Intn(32)+1, 0, worker.W-1)
-	y2 := clampInt(y1+rnd.Intn(32)+1, 0, worker.H-1)
-	return &Rectangle{worker, x1, y1, x2, y2}
+	r.Worker = worker
+	r.X1 = rnd.Intn(worker.W)
+	r.Y1 = rnd.Intn(worker.H)
+	r.X2 = clampInt(r.X1+rnd.Intn(32)+1, 0, worker.W-1)
+	r.Y2 = clampInt(r.Y1+rnd.Intn(32)+1, 0, worker.H-1)
 }
 
 func (r *Rectangle) bounds() (x1, y1, x2, y2 int) {
@@ -85,15 +91,20 @@ type RotatedRectangle struct {
 }
 
 func NewRandomRotatedRectangle(worker *Worker) *RotatedRectangle {
-	rnd := worker.Rnd
-	x := rnd.Intn(worker.W)
-	y := rnd.Intn(worker.H)
-	sx := rnd.Intn(32) + 1
-	sy := rnd.Intn(32) + 1
-	a := rnd.Intn(360)
-	r := &RotatedRectangle{worker, x, y, sx, sy, a}
-	r.Mutate()
+	r := &RotatedRectangle{}
+	r.Init(worker)
 	return r
+}
+
+func (r *RotatedRectangle) Init(worker *Worker) {
+	rnd := worker.Rnd
+	r.Worker = worker
+	r.X = rnd.Intn(worker.W)
+	r.Y = rnd.Intn(worker.H)
+	r.Sx = rnd.Intn(32) + 1
+	r.Sy = rnd.Intn(32) + 1
+	r.Angle = rnd.Intn(360)
+	r.Mutate()
 }
 
 func (r *RotatedRectangle) Draw(dc *gg.Context, scale float64) {
