@@ -8,37 +8,61 @@ import (
 	"github.com/golang/freetype/raster"
 )
 
+type EllipseType int
+
+const (
+	EllipseAny EllipseType = iota
+	EllipseCircle
+	EllipseFixedRadius
+)
+
 type Ellipse struct {
 	Worker      *Worker
 	X, Y        int
 	Rx, Ry      int
-	Circle      bool
-	SmallCircle bool
+	EllipseType EllipseType
 }
 
 func NewRandomEllipse(worker *Worker) *Ellipse {
-	rnd := worker.Rnd
-	x := rnd.Intn(worker.W)
-	y := rnd.Intn(worker.H)
-	rx := rnd.Intn(32) + 1
-	ry := rnd.Intn(32) + 1
-	return &Ellipse{worker, x, y, rx, ry, false, false}
+	c := &Ellipse{}
+	c.EllipseType = EllipseAny
+	c.Init(worker)
+	return c
 }
 
 func NewRandomCircle(worker *Worker) *Ellipse {
-	rnd := worker.Rnd
-	x := rnd.Intn(worker.W)
-	y := rnd.Intn(worker.H)
-	r := rnd.Intn(32) + 1
-	return &Ellipse{worker, x, y, r, r, true, false}
+	c := &Ellipse{}
+	c.EllipseType = EllipseCircle
+	c.Init(worker)
+	return c
 }
 
 func NewRandomFixedCircle(worker *Worker, r int) *Ellipse {
-	rnd := worker.Rnd
-	x := rnd.Intn(worker.W)
-	y := rnd.Intn(worker.H)
-	return &Ellipse{worker, x, y, r, r, true, true}
+	c := &Ellipse{}
+	c.EllipseType = EllipseFixedRadius
+	c.Rx = r
+	c.Ry = r
+	c.Init(worker)
+	return c
 }
+
+func (c *Ellipse) Init(worker* Worker) {
+	rnd := worker.Rnd
+	c.Worker = worker
+	c.X = rnd.Intn(worker.W)
+	c.Y = rnd.Intn(worker.H)
+	switch c.EllipseType {
+	case EllipseAny:
+		c.Rx = rnd.Intn(32) + 1
+		c.Ry = rnd.Intn(32) + 1
+	case EllipseCircle:
+		c.Rx = rnd.Intn(32) +1
+		c.Ry = c.Rx
+	case EllipseFixedRadius:
+		// Don't adjust the radius		
+	}
+}
+
 
 func (c *Ellipse) Draw(dc *gg.Context, scale float64) {
 	dc.DrawEllipse(float64(c.X), float64(c.Y), float64(c.Rx), float64(c.Ry))
@@ -60,7 +84,7 @@ func (c *Ellipse) Mutate() {
 	w := c.Worker.W
 	h := c.Worker.H
 	rnd := c.Worker.Rnd
-	if c.SmallCircle {
+	if c.EllipseType == EllipseFixedRadius {
 		c.X = clampInt(c.X+int(rnd.NormFloat64()*16), 0, w-1)
 		c.Y = clampInt(c.Y+int(rnd.NormFloat64()*16), 0, h-1)
 	} else {
@@ -70,12 +94,12 @@ func (c *Ellipse) Mutate() {
 			c.Y = clampInt(c.Y+int(rnd.NormFloat64()*16), 0, h-1)
 		case 1:
 			c.Rx = clampInt(c.Rx+int(rnd.NormFloat64()*16), 1, w-1)
-			if c.Circle {
+			if c.EllipseType == EllipseCircle {
 				c.Ry = c.Rx
 			}
 		case 2:
 			c.Ry = clampInt(c.Ry+int(rnd.NormFloat64()*16), 1, w-1)
-			if c.Circle {
+			if c.EllipseType == EllipseCircle {
 				c.Rx = c.Ry
 			}
 		}
@@ -127,6 +151,16 @@ func NewRandomRotatedEllipse(worker *Worker) *RotatedEllipse {
 	ry := rnd.Float64()*32 + 1
 	a := rnd.Float64() * 360
 	return &RotatedEllipse{worker, x, y, rx, ry, a}
+}
+
+func (c *RotatedEllipse) Init(worker *Worker)  {
+	rnd := worker.Rnd
+	c.Worker = worker
+	c.X = rnd.Float64() * float64(worker.W)
+	c.Y = rnd.Float64() * float64(worker.H)
+	c.Rx = rnd.Float64()*32 + 1
+	c.Ry = rnd.Float64()*32 + 1
+	c.Angle = rnd.Float64() * 360
 }
 
 func (c *RotatedEllipse) Draw(dc *gg.Context, scale float64) {
