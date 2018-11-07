@@ -1,15 +1,17 @@
 package primitive
 
+import "github.com/laramiel/primitive/primitive/shape"
+
 type State struct {
 	Worker      *Worker
-	Shape       Shape
+	Shape       shape.Shape
 	Z           int
 	Alpha       int
 	MutateAlpha bool
 	Score       float64
 }
 
-func NewState(worker *Worker, shape Shape, alpha int) *State {
+func NewState(worker *Worker, shape shape.Shape, alpha int) *State {
 	var mutateAlpha bool
 	if alpha == 0 {
 		alpha = 128
@@ -27,10 +29,10 @@ func (state *State) Energy() float64 {
 }
 
 func (state *State) DoMove() interface{} {
-	rnd := state.Worker.Rnd
 	oldState := state.Copy()
-	state.Shape.Mutate()
+	state.Shape.Mutate(&state.Worker.Plane)
 	if state.MutateAlpha {
+		rnd := state.Worker.Plane.Rnd
 		state.Alpha = clampInt(state.Alpha+rnd.Intn(21)-10, 1, 255)
 	}
 	state.Score = -1

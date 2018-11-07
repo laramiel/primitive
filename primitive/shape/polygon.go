@@ -1,4 +1,4 @@
-package primitive
+package shape
 
 import (
 	"fmt"
@@ -9,32 +9,29 @@ import (
 )
 
 type Polygon struct {
-	Worker *Worker
 	Order  int
 	Convex bool
 	X, Y   []float64
 }
 
-func NewRandomPolygon(worker *Worker, order int, convex bool) *Polygon {
+func NewPolygon(order int, convex bool) *Polygon {
 	p := &Polygon{}
 	p.Order = order
 	p.Convex = convex
-	p.Init(worker)
 	return p
 }
 
-func (p *Polygon) Init(worker *Worker) {
-	rnd := worker.Rnd
-	p.Worker = worker
+func (p *Polygon) Init(plane *Plane) {
+	rnd := plane.Rnd
 	p.X = make([]float64, p.Order)
 	p.Y = make([]float64, p.Order)
-	p.X[0] = rnd.Float64() * float64(worker.W)
-	p.Y[0] = rnd.Float64() * float64(worker.H)
+	p.X[0] = rnd.Float64() * float64(plane.W)
+	p.Y[0] = rnd.Float64() * float64(plane.H)
 	for i := 1; i < p.Order; i++ {
 		p.X[i] = p.X[0] + rnd.Float64()*40 - 20
 		p.Y[i] = p.Y[0] + rnd.Float64()*40 - 20
 	}
-	p.Mutate()
+	p.Mutate(plane)
 }
 
 func (p *Polygon) Draw(dc *gg.Context, scale float64) {
@@ -67,11 +64,11 @@ func (p *Polygon) Copy() Shape {
 	return &a
 }
 
-func (p *Polygon) Mutate() {
+func (p *Polygon) Mutate(plane *Plane) {
 	const m = 16
-	w := p.Worker.W
-	h := p.Worker.H
-	rnd := p.Worker.Rnd
+	w := plane.W
+	h := plane.H
+	rnd := plane.Rnd
 	for {
 		if rnd.Float64() < 0.25 {
 			i := rnd.Intn(p.Order)
@@ -115,7 +112,7 @@ func cross3(x1, y1, x2, y2, x3, y3 float64) float64 {
 	return dx1*dy2 - dy1*dx2
 }
 
-func (p *Polygon) Rasterize() []Scanline {
+func (p *Polygon) Rasterize(rc *RasterContext) []Scanline {
 	var path raster.Path
 	for i := 0; i <= p.Order; i++ {
 		f := fixp(p.X[i%p.Order], p.Y[i%p.Order])
@@ -125,5 +122,5 @@ func (p *Polygon) Rasterize() []Scanline {
 			path.Add1(f)
 		}
 	}
-	return fillPath(p.Worker, path)
+	return fillPath(rc, path)
 }

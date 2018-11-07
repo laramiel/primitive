@@ -1,4 +1,4 @@
-package primitive
+package shape
 
 import (
 	"fmt"
@@ -11,28 +11,26 @@ import (
 const LineMutate = 2 // 3 for line width
 
 type Line struct {
-	Worker *Worker
-	X1, Y1 float64
-	X2, Y2 float64
-	Width  float64
-    MaxLineWidth float64
+	X1, Y1       float64
+	X2, Y2       float64
+	Width        float64
+	MaxLineWidth float64
 }
 
-func NewRandomLine(worker *Worker) *Line {
+func NewLine() *Line {
 	l := &Line{}
-	l.Init(worker)
+	l.MaxLineWidth = 1.0 / 2
 	return l
 }
 
-func (q *Line) Init(worker *Worker) {	
-	rnd := worker.Rnd
-	q.Worker = worker
-	q.X1 = rnd.Float64() * float64(worker.W)
-	q.Y1 = rnd.Float64() * float64(worker.H)
-	q.X2 = rnd.Float64() * float64(worker.W)
-	q.Y2 = rnd.Float64() * float64(worker.H)
+func (q *Line) Init(plane *Plane) {
+	rnd := plane.Rnd
+	q.X1 = rnd.Float64() * float64(plane.W)
+	q.Y1 = rnd.Float64() * float64(plane.H)
+	q.X2 = rnd.Float64() * float64(plane.W)
+	q.Y2 = rnd.Float64() * float64(plane.H)
 	q.Width = 1.0 / 2
-	q.Mutate()
+	q.Mutate(plane)
 }
 
 func (q *Line) Draw(dc *gg.Context, scale float64) {
@@ -55,11 +53,11 @@ func (q *Line) Copy() Shape {
 	return &a
 }
 
-func (q *Line) Mutate() {
+func (q *Line) Mutate(plane *Plane) {
 	const m = 16
-	w := q.Worker.W
-	h := q.Worker.H
-	rnd := q.Worker.Rnd
+	w := plane.W
+	h := plane.H
+	rnd := plane.Rnd
 	for {
 		switch rnd.Intn(LineMutate) {
 		case 0:
@@ -70,7 +68,7 @@ func (q *Line) Mutate() {
 			q.Y2 = clamp(q.Y2+rnd.NormFloat64()*16, -m, float64(h-1+m))
 		case 2:
 			if q.Width != q.MaxLineWidth {
-			q.Width = clamp(q.Width+rnd.NormFloat64(), 0.1, q.MaxLineWidth)
+				q.Width = clamp(q.Width+rnd.NormFloat64(), 0.1, q.MaxLineWidth)
 			}
 		}
 		if q.Valid() {
@@ -88,42 +86,40 @@ func (q *Line) Valid() bool {
 	if y1 > y2 {
 		y1, y2 = y2, y1
 	}
-	return (y2-y1) > 2 || (x2-x1) > 2
+	return (y2-y1) > 1 || (x2-x1) > 1
 }
 
-func (q *Line) Rasterize() []Scanline {
+func (q *Line) Rasterize(rc *RasterContext) []Scanline {
 	var path raster.Path
 	p1 := fixp(q.X1, q.Y1)
 	p2 := fixp(q.X2, q.Y2)
 	path.Start(p1)
 	path.Add1(p2)
 	width := fix(q.Width)
-	return strokePath(q.Worker, path, width, raster.RoundCapper, raster.RoundJoiner)
+	return strokePath(rc, path, width, raster.RoundCapper, raster.RoundJoiner)
 }
 
 type RadialLine struct {
-	Line   Line
 	CX, CY float64
+	Line   Line
 }
 
-func NewRadialLine(worker *Worker, cx, cy float64) *RadialLine {
+func NewRadialLine(cx, cy float64) *RadialLine {
 	l := &RadialLine{}
 	l.CX = cx
 	l.CY = cy
 	l.Line.MaxLineWidth = 1.0 / 2
-	l.Init(worker)
 	return l
 }
 
-func (l *RadialLine) Init(worker *Worker) {	
-	rnd := worker.Rnd
-	l.Line.Worker = worker
-	l.Line.X1 = l.CX * float64(worker.W)
-	l.Line.Y1 = l.CY * float64(worker.H)
-	l.Line.X2 = rnd.Float64() * float64(worker.W)
-	l.Line.Y2 = rnd.Float64() * float64(worker.H)
+func (l *RadialLine) Init(plane *Plane) {
+	rnd := plane.Rnd
+	l.Line.X1 = l.CX * float64(plane.W)
+	l.Line.Y1 = l.CY * float64(plane.H)
+	l.Line.X2 = rnd.Float64() * float64(plane.W)
+	l.Line.Y2 = rnd.Float64() * float64(plane.H)
 	l.Line.Width = 1.0 / 2
-	l.Line.Mutate()
+	l.Mutate(plane)
 }
 
 func (l *RadialLine) Draw(dc *gg.Context, scale float64) {
@@ -139,12 +135,12 @@ func (l *RadialLine) Copy() Shape {
 	return &a
 }
 
-func (l *RadialLine) Mutate() {
+func (l *RadialLine) Mutate(plane *Plane) {
 	const MaxLineWidth = 4
 	const m = 16
-	w := l.Line.Worker.W
-	h := l.Line.Worker.H
-	rnd := l.Line.Worker.Rnd
+	w := plane.W
+	h := plane.H
+	rnd := plane.Rnd
 	for {
 		switch rnd.Intn(LineMutate) {
 		case 0:
@@ -174,6 +170,6 @@ func (l *RadialLine) Valid() bool {
 	return l.Line.Valid()
 }
 
-func (l *RadialLine) Rasterize() []Scanline {
-	return l.Line.Rasterize()
+func (l *RadialLine) Rasterize(rc *RasterContext) []Scanline {
+	return l.Line.Rasterize(rc)
 }

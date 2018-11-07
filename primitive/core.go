@@ -3,37 +3,11 @@ package primitive
 import (
 	"image"
 	"math"
+
+	"github.com/laramiel/primitive/primitive/shape"
 )
 
-func computeColor(target, current *image.RGBA, lines []Scanline, alpha int) Color {
-	var rsum, gsum, bsum, count int64
-	a := 0x101 * 255 / alpha
-	for _, line := range lines {
-		i := target.PixOffset(line.X1, line.Y)
-		for x := line.X1; x <= line.X2; x++ {
-			tr := int(target.Pix[i])
-			tg := int(target.Pix[i+1])
-			tb := int(target.Pix[i+2])
-			cr := int(current.Pix[i])
-			cg := int(current.Pix[i+1])
-			cb := int(current.Pix[i+2])
-			i += 4
-			rsum += int64((tr-cr)*a + cr*0x101)
-			gsum += int64((tg-cg)*a + cg*0x101)
-			bsum += int64((tb-cb)*a + cb*0x101)
-			count++
-		}
-	}
-	if count == 0 {
-		return Color{}
-	}
-	r := clampInt(int(rsum/count)>>8, 0, 255)
-	g := clampInt(int(gsum/count)>>8, 0, 255)
-	b := clampInt(int(bsum/count)>>8, 0, 255)
-	return Color{r, g, b, alpha}
-}
-
-func copyLines(dst, src *image.RGBA, lines []Scanline) {
+func copyLines(dst, src *image.RGBA, lines []shape.Scanline) {
 	for _, line := range lines {
 		a := dst.PixOffset(line.X1, line.Y)
 		b := a + (line.X2-line.X1+1)*4
@@ -41,22 +15,26 @@ func copyLines(dst, src *image.RGBA, lines []Scanline) {
 	}
 }
 
-func drawLines(im *image.RGBA, c Color, lines []Scanline) {
+func drawLines(im *image.RGBA, c Color, lines []shape.Scanline) {
 	const m = 0xffff
 	sr, sg, sb, sa := c.NRGBA().RGBA()
 	for _, line := range lines {
 		ma := line.Alpha
-		a := (m - sa*ma/m) * 0x101
+		sra := sr * ma
+		sga := sg * ma
+		sba := sb * ma
+		saa := sa * ma
+		a := (m - saa/m) * 0x101
 		i := im.PixOffset(line.X1, line.Y)
 		for x := line.X1; x <= line.X2; x++ {
 			dr := uint32(im.Pix[i+0])
 			dg := uint32(im.Pix[i+1])
 			db := uint32(im.Pix[i+2])
 			da := uint32(im.Pix[i+3])
-			im.Pix[i+0] = uint8((dr*a + sr*ma) / m >> 8)
-			im.Pix[i+1] = uint8((dg*a + sg*ma) / m >> 8)
-			im.Pix[i+2] = uint8((db*a + sb*ma) / m >> 8)
-			im.Pix[i+3] = uint8((da*a + sa*ma) / m >> 8)
+			im.Pix[i+0] = uint8((dr*a + sra) / m >> 8)
+			im.Pix[i+1] = uint8((dg*a + sga) / m >> 8)
+			im.Pix[i+2] = uint8((db*a + sba) / m >> 8)
+			im.Pix[i+3] = uint8((da*a + saa) / m >> 8)
 			i += 4
 		}
 	}
@@ -88,7 +66,7 @@ func differenceFull(a, b *image.RGBA) float64 {
 	return math.Sqrt(float64(total)/float64(w*h*4)) / 255
 }
 
-func differencePartial(target, before, after *image.RGBA, score float64, lines []Scanline) float64 {
+func differencePartial(target, before, after *image.RGBA, score float64, lines []shape.Scanline) float64 {
 	size := target.Bounds().Size()
 	w, h := size.X, size.Y
 	total := uint64(math.Pow(score*255, 2) * float64(w*h*4))

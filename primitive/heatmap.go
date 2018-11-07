@@ -4,6 +4,8 @@ import (
 	"image"
 	"image/color"
 	"math"
+
+	"github.com/laramiel/primitive/primitive/shape"
 )
 
 type Heatmap struct {
@@ -22,7 +24,7 @@ func (h *Heatmap) Clear() {
 	}
 }
 
-func (h *Heatmap) Add(lines []Scanline) {
+func (h *Heatmap) Add(lines []shape.Scanline) {
 	for _, line := range lines {
 		i := line.Y*h.W + line.X1
 		for x := line.X1; x <= line.X2; x++ {

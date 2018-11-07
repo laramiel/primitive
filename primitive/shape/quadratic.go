@@ -1,4 +1,4 @@
-package primitive
+package shape
 
 import (
 	"fmt"
@@ -9,32 +9,29 @@ import (
 )
 
 type Quadratic struct {
-	Worker *Worker
-	X1, Y1 float64
-	X2, Y2 float64
-	X3, Y3 float64
-	Width  float64
-    MaxLineWidth float64
+	X1, Y1       float64
+	X2, Y2       float64
+	X3, Y3       float64
+	Width        float64
+	MaxLineWidth float64
 }
 
-func NewRandomQuadratic(worker *Worker) *Quadratic {
+func NewQuadratic() *Quadratic {
 	q := &Quadratic{}
 	q.MaxLineWidth = 1.0 / 2
-	q.Init(worker)
 	return q
 }
 
-func (q *Quadratic) Init(worker *Worker) {	
-	rnd := worker.Rnd
-	q.Worker = worker
-	q.X1 = rnd.Float64() * float64(worker.W)
-	q.Y1 = rnd.Float64() * float64(worker.H)
+func (q *Quadratic) Init(plane *Plane) {
+	rnd := plane.Rnd
+	q.X1 = rnd.Float64() * float64(plane.W)
+	q.Y1 = rnd.Float64() * float64(plane.H)
 	q.X2 = q.X1 + rnd.Float64()*40 - 20
 	q.Y2 = q.Y1 + rnd.Float64()*40 - 20
 	q.X3 = q.X2 + rnd.Float64()*40 - 20
 	q.Y3 = q.Y2 + rnd.Float64()*40 - 20
 	q.Width = 1.0 / 2
-	q.Mutate()
+	q.Mutate(plane)
 }
 
 func (q *Quadratic) Draw(dc *gg.Context, scale float64) {
@@ -57,11 +54,11 @@ func (q *Quadratic) Copy() Shape {
 	return &a
 }
 
-func (q *Quadratic) Mutate() {
+func (q *Quadratic) Mutate(plane *Plane) {
 	const m = 16
-	w := q.Worker.W
-	h := q.Worker.H
-	rnd := q.Worker.Rnd
+	w := plane.W
+	h := plane.H
+	rnd := plane.Rnd
 	for {
 		switch rnd.Intn(4) {
 		case 0:
@@ -74,9 +71,7 @@ func (q *Quadratic) Mutate() {
 			q.X3 = clamp(q.X3+rnd.NormFloat64()*16, -m, float64(w-1+m))
 			q.Y3 = clamp(q.Y3+rnd.NormFloat64()*16, -m, float64(h-1+m))
 		case 3:
-			if q.Width != q.MaxLineWidth {
-			q.Width = clamp(q.Width+rnd.NormFloat64(), 0.1, q.MaxLineWidth)
-			}
+			q.Width = clamp(q.Width+rnd.NormFloat64(), 0.25, q.MaxLineWidth)
 		}
 		if q.Valid() {
 			break
@@ -97,7 +92,7 @@ func (q *Quadratic) Valid() bool {
 	return d13 > d12 && d13 > d23
 }
 
-func (q *Quadratic) Rasterize() []Scanline {
+func (q *Quadratic) Rasterize(rc *RasterContext) []Scanline {
 	var path raster.Path
 	p1 := fixp(q.X1, q.Y1)
 	p2 := fixp(q.X2, q.Y2)
@@ -105,5 +100,5 @@ func (q *Quadratic) Rasterize() []Scanline {
 	path.Start(p1)
 	path.Add2(p2, p3)
 	width := fix(q.Width)
-	return strokePath(q.Worker, path, width, raster.RoundCapper, raster.RoundJoiner)
+	return strokePath(rc, path, width, raster.RoundCapper, raster.RoundJoiner)
 }

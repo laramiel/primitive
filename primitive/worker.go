@@ -3,39 +3,45 @@ package primitive
 import (
 	"image"
 	"math/rand"
-	"time"
 
 	"github.com/golang/freetype/raster"
+	"github.com/laramiel/primitive/primitive/shape"
 )
 
 type Worker struct {
-	W, H       int
-	Target     *image.RGBA
-	Current    *image.RGBA
-	Buffer     *image.RGBA
-	Rasterizer *raster.Rasterizer
-	Lines      []Scanline
-	Heatmap    *Heatmap
-	Rnd        *rand.Rand
-	Score      float64
-	Counter    int
-	MinZ, MaxZ         int
+	Plane       shape.Plane
+	RC          shape.RasterContext
+	Target      *image.RGBA
+	Current     *image.RGBA
+	Buffer      *image.RGBA
+	Heatmap     *Heatmap
+	Score       float64
+	Counter     int
+	MinZ, MaxZ  int
+	ColorPicker ColorPicker // Picks the best color for the input scanlines
 }
 
-func NewWorker(target *image.RGBA) *Worker {
+func NewWorker(target *image.RGBA, seed int64) *Worker {
 	w := target.Bounds().Size().X
 	h := target.Bounds().Size().Y
-	worker := Worker{}
-	worker.W = w
-	worker.H = h
+	worker := Worker{
+		Plane: shape.Plane{
+			W:   w,
+			H:   h,
+			Rnd: rand.New(rand.NewSource(seed)),
+		},
+		RC: shape.RasterContext{
+			W:          w,
+			H:          h,
+			Lines:      make([]shape.Scanline, 0, 4096),
+			Rasterizer: raster.NewRasterizer(w, h),
+		},
+	}
 	worker.MinZ = 1
 	worker.MaxZ = 1
 	worker.Target = target
 	worker.Buffer = image.NewRGBA(target.Bounds())
-	worker.Rasterizer = raster.NewRasterizer(w, h)
-	worker.Lines = make([]Scanline, 0, 4096) // TODO: based on height
 	worker.Heatmap = NewHeatmap(w, h)
-	worker.Rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
 	return &worker
 }
 
@@ -46,17 +52,17 @@ func (worker *Worker) Init(current *image.RGBA, score float64) {
 	worker.Heatmap.Clear()
 }
 
-func (worker *Worker) Energy(shape Shape, alpha int) float64 {
+func (worker *Worker) Energy(shape shape.Shape, alpha int) float64 {
 	worker.Counter++
-	lines := shape.Rasterize()
+	lines := shape.Rasterize(&worker.RC)
 	// worker.Heatmap.Add(lines)
-	color := computeColor(worker.Target, worker.Current, lines, alpha)
+	color := worker.ColorPicker.Select(worker.Target, worker.Current, lines, alpha)
 	copyLines(worker.Buffer, worker.Current, lines)
 	drawLines(worker.Buffer, color, lines)
 	return differencePartial(worker.Target, worker.Current, worker.Buffer, worker.Score, lines)
 }
 
-func (worker *Worker) BestHillClimbState(factory ShapeFactory, a, n, age, m int) *State {
+func (worker *Worker) BestHillClimbState(factory shape.ShapeFactory, a, n, age, m int) *State {
 	var bestEnergy float64
 	var bestState *State
 	for i := 0; i < m; i++ {
@@ -73,11 +79,11 @@ func (worker *Worker) BestHillClimbState(factory ShapeFactory, a, n, age, m int)
 	return bestState
 }
 
-func (worker *Worker) BestRandomState(factory ShapeFactory, a, n int) *State {
+func (worker *Worker) BestRandomState(factory shape.ShapeFactory, a, n int) *State {
 	var bestEnergy float64
 	var bestState *State
 	for i := 0; i < n; i++ {
-		state := NewState(worker, factory.MakeShape(worker), a)
+		state := NewState(worker, factory.MakeShape(&worker.Plane), a)
 		energy := state.Energy()
 		if i == 0 || energy < bestEnergy {
 			bestEnergy = energy
@@ -90,7 +96,7 @@ func (worker *Worker) BestRandomState(factory ShapeFactory, a, n int) *State {
 func (worker *Worker) RandomZ() int {
 	z := 0
 	if worker.MaxZ > worker.MinZ {
-		z = worker.Rnd.Intn(worker.MaxZ - worker.MinZ)
+		z = worker.Plane.Rnd.Intn(worker.MaxZ - worker.MinZ)
 	}
 	return worker.MinZ + z
 }

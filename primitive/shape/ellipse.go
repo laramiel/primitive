@@ -1,4 +1,4 @@
-package primitive
+package shape
 
 import (
 	"fmt"
@@ -13,56 +13,72 @@ type EllipseType int
 const (
 	EllipseAny EllipseType = iota
 	EllipseCircle
+	EllipseCenteredCircle
 	EllipseFixedRadius
 )
 
 type Ellipse struct {
-	Worker      *Worker
 	X, Y        int
 	Rx, Ry      int
 	EllipseType EllipseType
+	CX, CY      float64
+	MaxRadius   int
 }
 
-func NewRandomEllipse(worker *Worker) *Ellipse {
+func NewEllipse() *Ellipse {
 	c := &Ellipse{}
 	c.EllipseType = EllipseAny
-	c.Init(worker)
 	return c
 }
 
-func NewRandomCircle(worker *Worker) *Ellipse {
+func NewCircle() *Ellipse {
 	c := &Ellipse{}
 	c.EllipseType = EllipseCircle
-	c.Init(worker)
 	return c
 }
 
-func NewRandomFixedCircle(worker *Worker, r int) *Ellipse {
+func NewFixedCircle(r int) *Ellipse {
 	c := &Ellipse{}
 	c.EllipseType = EllipseFixedRadius
 	c.Rx = r
 	c.Ry = r
-	c.Init(worker)
 	return c
 }
 
-func (c *Ellipse) Init(worker* Worker) {
-	rnd := worker.Rnd
-	c.Worker = worker
-	c.X = rnd.Intn(worker.W)
-	c.Y = rnd.Intn(worker.H)
-	switch c.EllipseType {
-	case EllipseAny:
-		c.Rx = rnd.Intn(32) + 1
-		c.Ry = rnd.Intn(32) + 1
-	case EllipseCircle:
-		c.Rx = rnd.Intn(32) +1
-		c.Ry = c.Rx
-	case EllipseFixedRadius:
-		// Don't adjust the radius		
-	}
+func NewCenteredCircle(x, y float64) *Ellipse {
+	c := &Ellipse{}
+	c.EllipseType = EllipseCenteredCircle
+	c.CX = x
+	c.CY = y
+	return c
 }
 
+func (c *Ellipse) Init(plane *Plane) {
+	rnd := plane.Rnd
+	maxr := 32
+	if c.MaxRadius > 0 && maxr > c.MaxRadius {
+		maxr = c.MaxRadius - 1
+	}
+	if c.EllipseType == EllipseCenteredCircle {
+		c.X = int(c.CX * float64(plane.W))
+		c.Y = int(c.CY * float64(plane.H))
+	} else {
+		c.X = rnd.Intn(plane.W)
+		c.Y = rnd.Intn(plane.H)
+	}
+	switch c.EllipseType {
+	case EllipseAny:
+		c.Rx = rnd.Intn(maxr) + 1
+		c.Ry = rnd.Intn(maxr) + 1
+	case EllipseCenteredCircle:
+		fallthrough
+	case EllipseCircle:
+		c.Rx = rnd.Intn(maxr) + 1
+		c.Ry = c.Rx
+	case EllipseFixedRadius:
+		// Don't adjust the radius
+	}
+}
 
 func (c *Ellipse) Draw(dc *gg.Context, scale float64) {
 	dc.DrawEllipse(float64(c.X), float64(c.Y), float64(c.Rx), float64(c.Ry))
@@ -80,36 +96,43 @@ func (c *Ellipse) Copy() Shape {
 	return &a
 }
 
-func (c *Ellipse) Mutate() {
-	w := c.Worker.W
-	h := c.Worker.H
-	rnd := c.Worker.Rnd
+func (c *Ellipse) Mutate(plane *Plane) {
+	w := plane.W
+	h := plane.H
+	rnd := plane.Rnd
+	var id int
 	if c.EllipseType == EllipseFixedRadius {
+		id = 0
+	} else if c.EllipseType == EllipseCenteredCircle {
+		id = 1
+	} else {
+		id = rnd.Intn(3)
+	}
+	maxr := w - 1
+	if c.MaxRadius > 0 {
+		maxr = c.MaxRadius
+	}
+	switch id {
+	case 0:
 		c.X = clampInt(c.X+int(rnd.NormFloat64()*16), 0, w-1)
 		c.Y = clampInt(c.Y+int(rnd.NormFloat64()*16), 0, h-1)
-	} else {
-		switch rnd.Intn(3) {
-		case 0:
-			c.X = clampInt(c.X+int(rnd.NormFloat64()*16), 0, w-1)
-			c.Y = clampInt(c.Y+int(rnd.NormFloat64()*16), 0, h-1)
-		case 1:
-			c.Rx = clampInt(c.Rx+int(rnd.NormFloat64()*16), 1, w-1)
-			if c.EllipseType == EllipseCircle {
-				c.Ry = c.Rx
-			}
-		case 2:
-			c.Ry = clampInt(c.Ry+int(rnd.NormFloat64()*16), 1, w-1)
-			if c.EllipseType == EllipseCircle {
-				c.Rx = c.Ry
-			}
+	case 1:
+		c.Rx = clampInt(c.Rx+int(rnd.NormFloat64()*16), 1, maxr)
+		if c.EllipseType == EllipseCircle || c.EllipseType == EllipseCenteredCircle {
+			c.Ry = c.Rx
+		}
+	case 2:
+		c.Ry = clampInt(c.Ry+int(rnd.NormFloat64()*16), 1, maxr)
+		if c.EllipseType == EllipseCircle || c.EllipseType == EllipseCenteredCircle {
+			c.Rx = c.Ry
 		}
 	}
 }
 
-func (c *Ellipse) Rasterize() []Scanline {
-	w := c.Worker.W
-	h := c.Worker.H
-	lines := c.Worker.Lines[:0]
+func (c *Ellipse) Rasterize(rc *RasterContext) []Scanline {
+	w := rc.W
+	h := rc.H
+	lines := rc.Lines[:0]
 	aspect := float64(c.Rx) / float64(c.Ry)
 	for dy := 0; dy < c.Ry; dy++ {
 		y1 := c.Y - dy
@@ -137,29 +160,28 @@ func (c *Ellipse) Rasterize() []Scanline {
 }
 
 type RotatedEllipse struct {
-	Worker *Worker
-	X, Y   float64
-	Rx, Ry float64
-	Angle  float64
+	Plane     *Plane
+	X, Y      float64
+	Rx, Ry    float64
+	Angle     float64
+	MaxRadius int
 }
 
-func NewRandomRotatedEllipse(worker *Worker) *RotatedEllipse {
-	rnd := worker.Rnd
-	x := rnd.Float64() * float64(worker.W)
-	y := rnd.Float64() * float64(worker.H)
-	rx := rnd.Float64()*32 + 1
-	ry := rnd.Float64()*32 + 1
-	a := rnd.Float64() * 360
-	return &RotatedEllipse{worker, x, y, rx, ry, a}
+func NewRotatedEllipse() *RotatedEllipse {
+	return &RotatedEllipse{}
 }
 
-func (c *RotatedEllipse) Init(worker *Worker)  {
-	rnd := worker.Rnd
-	c.Worker = worker
-	c.X = rnd.Float64() * float64(worker.W)
-	c.Y = rnd.Float64() * float64(worker.H)
-	c.Rx = rnd.Float64()*32 + 1
-	c.Ry = rnd.Float64()*32 + 1
+func (c *RotatedEllipse) Init(plane *Plane) {
+	rnd := plane.Rnd
+	c.Plane = plane
+	c.X = rnd.Float64() * float64(plane.W)
+	c.Y = rnd.Float64() * float64(plane.H)
+	maxr := 32.0
+	if c.MaxRadius > 0 && maxr > float64(c.MaxRadius) {
+		maxr = float64(c.MaxRadius) - 1
+	}
+	c.Rx = rnd.Float64()*maxr + 1
+	c.Ry = rnd.Float64()*maxr + 1
 	c.Angle = rnd.Float64() * 360
 }
 
@@ -182,23 +204,29 @@ func (c *RotatedEllipse) Copy() Shape {
 	return &a
 }
 
-func (c *RotatedEllipse) Mutate() {
-	w := c.Worker.W
-	h := c.Worker.H
-	rnd := c.Worker.Rnd
+func (c *RotatedEllipse) Mutate(plane *Plane) {
+	w := plane.W
+	h := plane.H
+	rnd := plane.Rnd
+
+	maxr := w - 1
+	if c.MaxRadius > 0 {
+		maxr = c.MaxRadius
+	}
+
 	switch rnd.Intn(3) {
 	case 0:
 		c.X = clamp(c.X+rnd.NormFloat64()*16, 0, float64(w-1))
 		c.Y = clamp(c.Y+rnd.NormFloat64()*16, 0, float64(h-1))
 	case 1:
-		c.Rx = clamp(c.Rx+rnd.NormFloat64()*16, 1, float64(w-1))
-		c.Ry = clamp(c.Ry+rnd.NormFloat64()*16, 1, float64(w-1))
+		c.Rx = clamp(c.Rx+rnd.NormFloat64()*16, 1, float64(maxr))
+		c.Ry = clamp(c.Ry+rnd.NormFloat64()*16, 1, float64(maxr))
 	case 2:
 		c.Angle = c.Angle + rnd.NormFloat64()*32
 	}
 }
 
-func (c *RotatedEllipse) Rasterize() []Scanline {
+func (c *RotatedEllipse) Rasterize(rc *RasterContext) []Scanline {
 	var path raster.Path
 	const n = 16
 	for i := 0; i < n; i++ {
@@ -222,5 +250,5 @@ func (c *RotatedEllipse) Rasterize() []Scanline {
 		}
 		path.Add2(fixp(cx+c.X, cy+c.Y), fixp(x2+c.X, y2+c.Y))
 	}
-	return fillPath(c.Worker, path)
+	return fillPath(rc, path)
 }

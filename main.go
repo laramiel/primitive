@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/laramiel/primitive/primitive"
+	plog "github.com/laramiel/primitive/primitive/log"
+	"github.com/laramiel/primitive/primitive/shape"
 	"github.com/nfnt/resize"
 )
 
@@ -21,6 +23,7 @@ var (
 	Outputs    flagArray
 	Background string
 	Configs    shapeConfigArray
+  ColorPicker string
 	Alpha      int
 	InputSize  int
 	OutputSize int
@@ -28,7 +31,9 @@ var (
 	Workers    int
 	Nth        int
 	Repeat     int
-	V, VV      bool
+	V          bool
+	VV         bool
+	Seed       int64
 	ZLevels    int // TODO
 )
 
@@ -48,6 +53,7 @@ type shapeConfig struct {
 	Mode   int
 	Alpha  int
 	Repeat int
+	Shapes string
 }
 
 type shapeConfigArray []shapeConfig
@@ -58,7 +64,7 @@ func (i *shapeConfigArray) String() string {
 
 func (i *shapeConfigArray) Set(value string) error {
 	n, _ := strconv.ParseInt(value, 0, 0)
-	*i = append(*i, shapeConfig{int(n), Mode, Alpha, Repeat})
+	*i = append(*i, shapeConfig{int(n), Mode, Alpha, Repeat, ""})
 	return nil
 }
 
@@ -77,6 +83,8 @@ func init() {
 	flag.IntVar(&Repeat, "rep", 0, "add N extra shapes per iteration with reduced search")
 	flag.BoolVar(&V, "v", false, "verbose")
 	flag.BoolVar(&VV, "vv", false, "very verbose")
+	flag.Int64Var(&Seed, "seed", 0, "RNG seed")
+	flag.StringVar(&ColorPicker, "color", "", "Color picker to use")
 }
 
 func errorMessage(message string) bool {
@@ -107,6 +115,7 @@ func main() {
 		Configs[0].Mode = Mode
 		Configs[0].Alpha = Alpha
 		Configs[0].Repeat = Repeat
+		Configs[0].Shapes = ""
 	}
 	for _, config := range Configs {
 		if config.Count < 1 {
@@ -121,14 +130,22 @@ func main() {
 
 	// set log level
 	if V {
-		primitive.LogLevel = 1
+		plog.LogLevel = 1
 	}
 	if VV {
-		primitive.LogLevel = 2
+		plog.LogLevel = 2
 	}
 
 	// seed random number generator
-	rand.Seed(time.Now().UTC().UnixNano())
+	if Seed == 0 {
+		Seed = time.Now().UTC().UnixNano()
+	} else {
+		// Seed from command line, use only one worker by default
+		if Workers < 1 {
+			Workers = 1
+		}
+	}
+	rand.Seed(Seed)
 
 	// determine worker count
 	if Workers < 1 {
@@ -136,7 +153,7 @@ func main() {
 	}
 
 	// read input image
-	primitive.Log(1, "reading %s\n", Input)
+	plog.Log(1, "reading %s\n", Input)
 	input, err := primitive.LoadImage(Input)
 	check(err)
 
@@ -155,26 +172,61 @@ func main() {
 	} else {
 		bg = primitive.MakeHexColor(Background)
 	}
+	bg = primitive.MakeColor(primitive.ColorAtPoint(input, 5, 5))
+	plog.Log(1, "%v\n", bg)
 
 	// run algorithm
-	model := primitive.NewModel(input, bg, OutputSize, Workers)
-	primitive.Log(1, "%d: t=%.3f, score=%.6f\n", 0, 0.0, model.Score)
+	model := primitive.NewModel(input, bg, OutputSize)
+
+	// Change the color model.
+	model.ColorPicker = primitive.MakeColorPicker(ColorPicker)
+
+	model.Init(Workers, Seed)
+	plog.Log(1, "%d: t=%.3f, score=%.6f\n", 0, 0.0, model.Score)
 	start := time.Now()
 	frame := 0
 	for j, config := range Configs {
-		primitive.Log(1, "count=%d, mode=%d, alpha=%d, repeat=%d\n",
+		plog.Log(1, "count=%d, mode=%d, alpha=%d, repeat=%d\n",
 			config.Count, config.Mode, config.Alpha, config.Repeat)
+
+		{
+			factory := shape.NewSelectedShapeFactory()
+
+			// Radial line example
+			const cX = (1051 + 202) / 2100.0
+			const cY = (437 + 202) / 1500.0
+			factory.AddShape(shape.NewRadialLine(cX, cY))
+
+			// Radial line example
+			const cX2 = 1172 / 2100.0
+			const cY2 = 448 / 1500.0
+			factory.AddShape(shape.NewRadialLine(cX2, cY2))
+
+			// Centered circle example
+			factory.AddShape(shape.NewCenteredCircle(cX, cY))
+			factory.AddShape(shape.NewMaxAreaTriangle(60))
+			factory.AddShape(shape.NewFixedCircle(1))
+
+			plog.Log(1, "%s\n", factory.Marshal())
+		}
+
+		var factory shape.ShapeFactory
+		if config.Shapes == "" {
+			factory = shape.NewBasicShapeFactory(config.Mode)
+			config.Shapes = factory.Marshal()
+		} else {
+			factory = shape.UnmarshalShapeFactory(config.Shapes)
+		}
 
 		for i := 0; i < config.Count; i++ {
 			frame++
 
 			// find optimal shape and add it to the model
 			t := time.Now()
-			factory := primitive.NewBasicShapeFactory(config.Mode)
 			n := model.Step(factory, config.Alpha, config.Repeat)
 			nps := primitive.NumberString(float64(n) / time.Since(t).Seconds())
 			elapsed := time.Since(start).Seconds()
-			primitive.Log(1, "%d: t=%.3f, score=%.6f, n=%d, n/s=%s\n", frame, elapsed, model.Score, n, nps)
+			plog.Log(1, "%d: t=%.3f, score=%.6f, n=%d, n/s=%s\n", frame, elapsed, model.Score, n, nps)
 
 			// write output image(s)
 			for _, output := range Outputs {
@@ -188,7 +240,7 @@ func main() {
 					if percent {
 						path = fmt.Sprintf(output, frame)
 					}
-					primitive.Log(1, "writing %s\n", path)
+					plog.Log(1, "writing %s\n", path)
 					switch ext {
 					default:
 						check(fmt.Errorf("unrecognized file extension: %s", ext))
@@ -207,3 +259,7 @@ func main() {
 		}
 	}
 }
+
+/*
+
+ */

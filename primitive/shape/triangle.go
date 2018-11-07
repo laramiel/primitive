@@ -1,4 +1,4 @@
-package primitive
+package shape
 
 import (
 	"fmt"
@@ -8,28 +8,31 @@ import (
 )
 
 type Triangle struct {
-	Worker *Worker
-	X1, Y1 int
-	X2, Y2 int
-	X3, Y3 int
+	X1, Y1  int
+	X2, Y2  int
+	X3, Y3  int
+	MaxArea int
 }
 
-func NewRandomTriangle(worker *Worker) *Triangle {
+func NewTriangle() *Triangle {
+	return &Triangle{}
+}
+
+func NewMaxAreaTriangle(area int) *Triangle {
 	t := &Triangle{}
-	t.Init(worker)
+	t.MaxArea = area
 	return t
 }
 
-func (t *Triangle) Init(worker *Worker) {
-	rnd := worker.Rnd
-	t.Worker = worker
-	t.X1 = rnd.Intn(worker.W)
-	t.Y1 = rnd.Intn(worker.H)
+func (t *Triangle) Init(plane *Plane) {
+	rnd := plane.Rnd
+	t.X1 = rnd.Intn(plane.W)
+	t.Y1 = rnd.Intn(plane.H)
 	t.X2 = t.X1 + rnd.Intn(31) - 15
 	t.Y2 = t.Y1 + rnd.Intn(31) - 15
 	t.X3 = t.X1 + rnd.Intn(31) - 15
 	t.Y3 = t.Y1 + rnd.Intn(31) - 15
-	t.Mutate()
+	t.Mutate(plane)
 }
 
 func (t *Triangle) Draw(dc *gg.Context, scale float64) {
@@ -51,10 +54,10 @@ func (t *Triangle) Copy() Shape {
 	return &a
 }
 
-func (t *Triangle) Mutate() {
-	w := t.Worker.W
-	h := t.Worker.H
-	rnd := t.Worker.Rnd
+func (t *Triangle) Mutate(plane *Plane) {
+	w := plane.W
+	h := plane.H
+	rnd := plane.Rnd
 	const m = 16
 	for {
 		switch rnd.Intn(3) {
@@ -75,6 +78,17 @@ func (t *Triangle) Mutate() {
 }
 
 func (t *Triangle) Valid() bool {
+	if t.MaxArea > 0 {
+		// compute the area.
+		a := (t.X1*(t.Y2-t.Y3) + t.X2*(t.Y3-t.Y1) + t.X3*(t.Y1-t.Y2)) / 2
+		if a < 0 {
+			a = -a
+		}
+		if a > t.MaxArea {
+			return false
+		}
+	}
+
 	const minDegrees = 15
 	var a1, a2, a3 float64
 	{
@@ -107,10 +121,10 @@ func (t *Triangle) Valid() bool {
 	return a1 > minDegrees && a2 > minDegrees && a3 > minDegrees
 }
 
-func (t *Triangle) Rasterize() []Scanline {
-	buf := t.Worker.Lines[:0]
+func (t *Triangle) Rasterize(rc *RasterContext) []Scanline {
+	buf := rc.Lines[:0]
 	lines := rasterizeTriangle(t.X1, t.Y1, t.X2, t.Y2, t.X3, t.Y3, buf)
-	return cropScanlines(lines, t.Worker.W, t.Worker.H)
+	return cropScanlines(lines, rc.W, rc.H)
 }
 
 func rasterizeTriangle(x1, y1, x2, y2, x3, y3 int, buf []Scanline) []Scanline {

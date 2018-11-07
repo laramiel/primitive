@@ -1,4 +1,4 @@
-package primitive
+package shape
 
 import (
 	"github.com/golang/freetype/raster"
@@ -23,24 +23,24 @@ func (p *painter) Paint(spans []raster.Span, done bool) {
 	}
 }
 
-func fillPath(worker *Worker, path raster.Path) []Scanline {
-	r := worker.Rasterizer
+func fillPath(rc *RasterContext, path raster.Path) []Scanline {
+	r := rc.Rasterizer
 	r.Clear()
 	r.UseNonZeroWinding = true
 	r.AddPath(path)
 	var p painter
-	p.Lines = worker.Lines[:0]
+	p.Lines = rc.Lines[:0]
 	r.Rasterize(&p)
 	return p.Lines
 }
 
-func strokePath(worker *Worker, path raster.Path, width fixed.Int26_6, cr raster.Capper, jr raster.Joiner) []Scanline {
-	r := worker.Rasterizer
+func strokePath(rc *RasterContext, path raster.Path, width fixed.Int26_6, cr raster.Capper, jr raster.Joiner) []Scanline {
+	r := rc.Rasterizer
 	r.Clear()
 	r.UseNonZeroWinding = true
 	r.AddStroke(path, width, cr, jr)
 	var p painter
-	p.Lines = worker.Lines[:0]
+	p.Lines = rc.Lines[:0]
 	r.Rasterize(&p)
 	return p.Lines
 }

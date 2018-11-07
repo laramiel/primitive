@@ -3,26 +3,32 @@ package primitive
 import (
 	"fmt"
 	"image"
+	"math/rand"
 	"strings"
+	"time"
 
 	"github.com/fogleman/gg"
+	"github.com/golang/freetype/raster"
+	"github.com/laramiel/primitive/primitive/shape"
 )
 
 type Model struct {
-	Sw, Sh     int
-	Scale      float64
-	Background Color
-	Target     *image.RGBA
-	Current    *image.RGBA
-	Context    *gg.Context
-	Score      float64
-	Shapes     []Shape
-	Colors     []Color
-	Scores     []float64
-	Workers    []*Worker
+	Sw, Sh      int
+	Scale       float64
+	Background  Color
+	Target      *image.RGBA
+	Current     *image.RGBA
+	Context     *gg.Context
+	RC          shape.RasterContext // Rasterizes the shape into scanlines
+	ColorPicker ColorPicker         // Picks the best color for the input scanlines
+	Score       float64
+	Shapes      []shape.Shape
+	Colors      []Color
+	Scores      []float64
+	Workers     []*Worker
 }
 
-func NewModel(target image.Image, background Color, size, numWorkers int) *Model {
+func NewModel(target image.Image, background Color, size int) *Model {
 	w := target.Bounds().Size().X
 	h := target.Bounds().Size().Y
 	aspect := float64(w) / float64(h)
@@ -38,7 +44,16 @@ func NewModel(target image.Image, background Color, size, numWorkers int) *Model
 		scale = float64(size) / float64(h)
 	}
 
-	model := &Model{}
+	model := &Model{
+		RC: shape.RasterContext{
+			W:          w,
+			H:          h,
+			Lines:      make([]shape.Scanline, 0, 4096),
+			Rasterizer: raster.NewRasterizer(w, h),
+		},
+		ColorPicker: &BestColor{},
+	}
+
 	model.Sw = sw
 	model.Sh = sh
 	model.Scale = scale
@@ -47,11 +62,20 @@ func NewModel(target image.Image, background Color, size, numWorkers int) *Model
 	model.Current = uniformRGBA(target.Bounds(), background.NRGBA())
 	model.Score = differenceFull(model.Target, model.Current)
 	model.Context = model.newContext()
+	return model
+}
+
+func (model *Model) Init(numWorkers int, seed int64) {
+	if seed == 0 {
+		seed = time.Now().UnixNano()
+		v("--seed = %d", seed)
+	}
+	rng := rand.New(rand.NewSource(seed))
 	for i := 0; i < numWorkers; i++ {
-		worker := NewWorker(model.Target)
+		worker := NewWorker(model.Target, rng.Int63())
+		worker.ColorPicker = model.ColorPicker
 		model.Workers = append(model.Workers, worker)
 	}
-	return model
 }
 
 func (model *Model) newContext() *gg.Context {
@@ -86,13 +110,13 @@ func (model *Model) Frames(scoreDelta float64) []image.Image {
 func (model *Model) SVG() string {
 	bg := model.Background
 	var lines []string
-	lines = append(lines, fmt.Sprintf("<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"%d\" height=\"%d\">", model.Sw, model.Sh))
+	// lines = append(lines, fmt.Sprintf("<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"%d\" height=\"%d\">", model.Sw, model.Sh))
+	lines = append(lines, fmt.Sprintf("<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"100%%\" height=\"100%%\" preserveAspectRatio=\"none\" viewbox=\"0 0 %d %d\">", model.Sw, model.Sh))
 	lines = append(lines, fmt.Sprintf("<rect x=\"0\" y=\"0\" width=\"%d\" height=\"%d\" fill=\"#%02x%02x%02x\" />", model.Sw, model.Sh, bg.R, bg.G, bg.B))
-	lines = append(lines, fmt.Sprintf("<g transform=\"scale(%f) translate(0.5 0.5)\">", model.Scale))
+	lines = append(lines, fmt.Sprintf("<g transform=\"scale(%f) translate(0.5 0.5)\" fill-opacity=\"%f\">", model.Scale, float64(model.Colors[0].A)/255))
 	for i, shape := range model.Shapes {
 		c := model.Colors[i]
-		attrs := "fill=\"#%02x%02x%02x\" fill-opacity=\"%f\""
-		attrs = fmt.Sprintf(attrs, c.R, c.G, c.B, float64(c.A)/255)
+		attrs := fmt.Sprintf("fill=\"#%02x%02x%02x\"", c.R, c.G, c.B)
 		lines = append(lines, shape.SVG(attrs))
 	}
 	lines = append(lines, "</g>")
@@ -100,10 +124,10 @@ func (model *Model) SVG() string {
 	return strings.Join(lines, "\n")
 }
 
-func (model *Model) Add(shape Shape, alpha int) {
+func (model *Model) Add(shape shape.Shape, alpha int) {
 	before := copyRGBA(model.Current)
-	lines := shape.Rasterize()
-	color := computeColor(model.Target, model.Current, lines, alpha)
+	lines := shape.Rasterize(&model.RC)
+	color := model.ColorPicker.Select(model.Target, model.Current, lines, alpha)
 	drawLines(model.Current, color, lines)
 	score := differencePartial(model.Target, before, model.Current, model.Score, lines)
 
@@ -116,7 +140,7 @@ func (model *Model) Add(shape Shape, alpha int) {
 	shape.Draw(model.Context, model.Scale)
 }
 
-func (model *Model) Step(factory ShapeFactory, alpha, repeat int) int {
+func (model *Model) Step(factory shape.ShapeFactory, alpha, repeat int) int {
 	state := model.runWorkers(factory, alpha, 1000, 100, 16)
 	// state = HillClimb(state, 1000).(*State)
 	model.Add(state.Shape, state.Alpha)
@@ -144,7 +168,7 @@ func (model *Model) Step(factory ShapeFactory, alpha, repeat int) int {
 	return counter
 }
 
-func (model *Model) runWorkers(factory ShapeFactory, a, n, age, m int) *State {
+func (model *Model) runWorkers(factory shape.ShapeFactory, a, n, age, m int) *State {
 	wn := len(model.Workers)
 	ch := make(chan *State, wn)
 	wm := m / wn
@@ -169,6 +193,6 @@ func (model *Model) runWorkers(factory ShapeFactory, a, n, age, m int) *State {
 	return bestState
 }
 
-func (model *Model) runWorker(worker *Worker, factory ShapeFactory, a, n, age, m int, ch chan *State) {
+func (model *Model) runWorker(worker *Worker, factory shape.ShapeFactory, a, n, age, m int, ch chan *State) {
 	ch <- worker.BestHillClimbState(factory, a, n, age, m)
 }
