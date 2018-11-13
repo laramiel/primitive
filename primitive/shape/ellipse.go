@@ -59,7 +59,6 @@ type Ellipse struct {
 	EllipseType EllipseType
 	CX, CY      float64
 	MaxRadius   int
-	Type        string
 }
 
 func NewEllipse() *Ellipse {
