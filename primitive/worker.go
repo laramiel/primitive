@@ -21,7 +21,7 @@ type Worker struct {
 	ColorPicker ColorPicker // Picks the best color for the input scanlines
 }
 
-func NewWorker(target *image.RGBA, seed int64) *Worker {
+func NewWorker(target *image.RGBA, seed int64, picker ColorPicker) *Worker {
 	w := target.Bounds().Size().X
 	h := target.Bounds().Size().Y
 	worker := Worker{
@@ -42,6 +42,8 @@ func NewWorker(target *image.RGBA, seed int64) *Worker {
 	worker.Target = target
 	worker.Buffer = image.NewRGBA(target.Bounds())
 	worker.Heatmap = NewHeatmap(w, h)
+	worker.ColorPicker = picker
+	vv("%+v\n", worker)
 	return &worker
 }
 
@@ -59,7 +61,8 @@ func (worker *Worker) Energy(shape shape.Shape, alpha int) float64 {
 	color := worker.ColorPicker.Select(worker.Target, worker.Current, lines, alpha)
 	copyLines(worker.Buffer, worker.Current, lines)
 	drawLines(worker.Buffer, color, lines)
-	return differencePartial(worker.Target, worker.Current, worker.Buffer, worker.Score, lines)
+	energy := differencePartial(worker.Target, worker.Current, worker.Buffer, worker.Score, lines)
+	return energy
 }
 
 func (worker *Worker) BestHillClimbState(factory shape.ShapeFactory, a, n, age, m int) *State {

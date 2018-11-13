@@ -28,7 +28,7 @@ type Model struct {
 	Workers     []*Worker
 }
 
-func NewModel(target image.Image, background Color, size int) *Model {
+func NewModel(target image.Image, background Color, size int, picker ColorPicker) *Model {
 	w := target.Bounds().Size().X
 	h := target.Bounds().Size().Y
 	aspect := float64(w) / float64(h)
@@ -51,7 +51,7 @@ func NewModel(target image.Image, background Color, size int) *Model {
 			Lines:      make([]shape.Scanline, 0, 4096),
 			Rasterizer: raster.NewRasterizer(w, h),
 		},
-		ColorPicker: &BestColor{},
+		ColorPicker: picker,
 	}
 
 	model.Sw = sw
@@ -62,18 +62,18 @@ func NewModel(target image.Image, background Color, size int) *Model {
 	model.Current = uniformRGBA(target.Bounds(), background.NRGBA())
 	model.Score = differenceFull(model.Target, model.Current)
 	model.Context = model.newContext()
+	vv("%+v\n", model)
 	return model
 }
 
 func (model *Model) Init(numWorkers int, seed int64) {
 	if seed == 0 {
 		seed = time.Now().UnixNano()
-		v("--seed = %d", seed)
+		v("--seed=%d", seed)
 	}
 	rng := rand.New(rand.NewSource(seed))
 	for i := 0; i < numWorkers; i++ {
-		worker := NewWorker(model.Target, rng.Int63())
-		worker.ColorPicker = model.ColorPicker
+		worker := NewWorker(model.Target, rng.Int63(), model.ColorPicker)
 		model.Workers = append(model.Workers, worker)
 	}
 }

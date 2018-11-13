@@ -5,21 +5,42 @@ import (
 )
 
 type BasicShapes struct {
-	t ShapeType
+	t    ShapeType
+	mask uint32
 }
+
+const biggest = int(ShapeTypePolygon)
+const allShapes = uint32(1<<uint(biggest)) - 1
 
 // NewBasicShapeFactory returns either the specific shape,
 // or a randomly-selected shape.
-func NewBasicShapeFactory(t int) ShapeFactory {
-	return &BasicShapes{ShapeType(t)}
+func NewBasicShapeFactory(t []ShapeType) ShapeFactory {
+	var mask uint32 = 0
+	if len(t) == 0 {
+		return &BasicShapes{ShapeTypeAny, allShapes}
+	}
+	if len(t) == 1 && t[0] != ShapeTypeAny {
+		return &BasicShapes{t[0], 0}
+	}
+	for _, v := range t {
+		if v == ShapeTypeAny {
+			return &BasicShapes{ShapeTypeAny, allShapes}
+		}
+		mask |= 1 << (uint32(v) - 1)
+	}
+	return &BasicShapes{ShapeTypeAny, mask}
 }
 
 func (factory *BasicShapes) MakeShape(plane *Plane) Shape {
+
 	t := factory.t
-	if t == ShapeTypeAny {
-		rnd := plane.Rnd
-		t = ShapeType(rnd.Intn(9) + 1)
+	for t == ShapeTypeAny {
+		v := plane.Rnd.Intn(biggest - 1)
+		if factory.mask&(1<<uint32(v)) != 0 {
+			t = ShapeType(v + 1)
+		}
 	}
+
 	var s Shape
 	switch t {
 	case ShapeTypeTriangle:
@@ -41,6 +62,7 @@ func (factory *BasicShapes) MakeShape(plane *Plane) Shape {
 	case ShapeTypePolygon:
 		s = NewPolygon(4, false)
 	default:
+		panic("Aah!")
 		return nil
 	}
 	s.Init(plane)
@@ -49,7 +71,7 @@ func (factory *BasicShapes) MakeShape(plane *Plane) Shape {
 
 func (factory *BasicShapes) Marshal() string {
 	str, _ := json.Marshal(factory)
-  return string(str)
+	return string(str)
 }
 
 // SelectedShapes allows the caller to add specific shapes.
@@ -75,14 +97,25 @@ func (factory *SelectedShapes) AddShape(shape Shape) {
 	vv("Shape: %v\n", shape)
 }
 
+func (factory *SelectedShapes) MarshalJSON() (b []byte, e error) {
+	var data []json.RawMessage
+	for _, v := range factory.Shapes {
+		b, e := MarshalShape(v)
+		if e == nil {
+			data = append(data, json.RawMessage(b))
+		}
+	}
+	return json.Marshal(data)
+}
+
 func (factory *SelectedShapes) Marshal() string {
 	str, _ := json.Marshal(factory)
-  return string(str)
+	return string(str)
 }
 
 func UnmarshalShapeFactory(data string) ShapeFactory {
-  mydata := []byte(data)
-	basic := BasicShapes{ShapeType(0)}
+	mydata := []byte(data)
+	basic := BasicShapes{}
 	if err := json.Unmarshal(mydata, &basic); err == nil {
 		return &basic
 	}

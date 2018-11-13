@@ -19,22 +19,22 @@ import (
 )
 
 var (
-	Input      string
-	Outputs    flagArray
-	Background string
-	Configs    shapeConfigArray
-  ColorPicker string
-	Alpha      int
-	InputSize  int
-	OutputSize int
-	Mode       int
-	Workers    int
-	Nth        int
-	Repeat     int
-	V          bool
-	VV         bool
-	Seed       int64
-	ZLevels    int // TODO
+	Input       string
+	Outputs     flagArray
+	Background  string
+	Configs     shapeConfigArray
+	ColorPicker string
+	Alpha       int
+	InputSize   int
+	OutputSize  int
+	Mode        int
+	Workers     int
+	Nth         int
+	Repeat      int
+	V           bool
+	VV          bool
+	Seed        int64
+	ZLevels     int // TODO
 )
 
 type flagArray []string
@@ -73,7 +73,7 @@ func init() {
 	flag.Var(&Outputs, "o", "output image path")
 	flag.Var(&Configs, "n", "number of primitives")
 	flag.StringVar(&Background, "bg", "", "background color (hex)")
-	flag.IntVar(&Alpha, "a", 128, "alpha value")
+	flag.IntVar(&Alpha, "a", 0, "alpha value")
 	flag.IntVar(&InputSize, "r", 256, "resize large input images to this size")
 	flag.IntVar(&ZLevels, "z", 1, "Maximum z-index")
 	flag.IntVar(&OutputSize, "s", 1024, "output image size")
@@ -139,18 +139,16 @@ func main() {
 	// seed random number generator
 	if Seed == 0 {
 		Seed = time.Now().UTC().UnixNano()
-	} else {
-		// Seed from command line, use only one worker by default
-		if Workers < 1 {
-			Workers = 1
-		}
+		fmt.Println("--seed %d", Seed)
 	}
 	rand.Seed(Seed)
+	plog.Log(1, "-seed %d\n", Seed)
 
 	// determine worker count
 	if Workers < 1 {
 		Workers = runtime.NumCPU()
 	}
+	plog.Log(1, "-j %d\n", Workers)
 
 	// read input image
 	plog.Log(1, "reading %s\n", Input)
@@ -166,21 +164,22 @@ func main() {
 	// determine background color
 	var bg primitive.Color
 	if Background == "" {
+		plog.Log(1, "Setting backgroud to average color\n")
 		bg = primitive.MakeColor(primitive.AverageImageColor(input))
 	} else if Background == "top" {
+		plog.Log(1, "Setting backgroud to most frequent color\n")
 		bg = primitive.MakeColor(primitive.MostFrequentImageColor(input))
+	} else if Background == "center" {
+		plog.Log(1, "Setting backgroud to center color\n")
+		b := input.Bounds()
+		bg = primitive.MakeColor(primitive.ColorAtPoint(input, (b.Max.X-b.Min.X)/2, (b.Max.Y-b.Min.Y)/2))
 	} else {
+		plog.Log(1, "Setting backgroud to %s\n", Background)
 		bg = primitive.MakeHexColor(Background)
 	}
-	bg = primitive.MakeColor(primitive.ColorAtPoint(input, 5, 5))
-	plog.Log(1, "%v\n", bg)
 
 	// run algorithm
-	model := primitive.NewModel(input, bg, OutputSize)
-
-	// Change the color model.
-	model.ColorPicker = primitive.MakeColorPicker(ColorPicker)
-
+	model := primitive.NewModel(input, bg, OutputSize, primitive.MakeColorPicker(ColorPicker))
 	model.Init(Workers, Seed)
 	plog.Log(1, "%d: t=%.3f, score=%.6f\n", 0, 0.0, model.Score)
 	start := time.Now()
@@ -188,34 +187,37 @@ func main() {
 	for j, config := range Configs {
 		plog.Log(1, "count=%d, mode=%d, alpha=%d, repeat=%d\n",
 			config.Count, config.Mode, config.Alpha, config.Repeat)
+		/*
+			{
+				factory := shape.NewSelectedShapeFactory()
 
-		{
-			factory := shape.NewSelectedShapeFactory()
+				// Radial line example
+				const cX = (1051 + 202) / 2100.0
+				const cY = (437 + 202) / 1500.0
+				factory.AddShape(shape.NewRadialLine(cX, cY))
 
-			// Radial line example
-			const cX = (1051 + 202) / 2100.0
-			const cY = (437 + 202) / 1500.0
-			factory.AddShape(shape.NewRadialLine(cX, cY))
+				// Radial line example
+				const cX2 = 1172 / 2100.0
+				const cY2 = 448 / 1500.0
+				factory.AddShape(shape.NewRadialLine(cX2, cY2))
 
-			// Radial line example
-			const cX2 = 1172 / 2100.0
-			const cY2 = 448 / 1500.0
-			factory.AddShape(shape.NewRadialLine(cX2, cY2))
+				// Centered circle example
+				factory.AddShape(shape.NewCenteredCircle(cX, cY))
+				factory.AddShape(shape.NewMaxAreaTriangle(60))
+				factory.AddShape(shape.NewFixedCircle(1))
 
-			// Centered circle example
-			factory.AddShape(shape.NewCenteredCircle(cX, cY))
-			factory.AddShape(shape.NewMaxAreaTriangle(60))
-			factory.AddShape(shape.NewFixedCircle(1))
-
-			plog.Log(1, "%s\n", factory.Marshal())
-		}
-
+				plog.Log(1, "%s\n", factory.Marshal())
+			}
+		*/
+		// "0=combo 1=triangle 2=rect 3=ellipse 4=circle 5=rotatedrect 6=line 7=beziers 8=rotatedellipse 9=polygon"
 		var factory shape.ShapeFactory
 		if config.Shapes == "" {
-			factory = shape.NewBasicShapeFactory(config.Mode)
+			factory = shape.NewBasicShapeFactory([]shape.ShapeType{shape.ShapeType(1), shape.ShapeType(2), shape.ShapeType(4)})
+		} else if config.Shapes != "" {
+			factory = shape.UnmarshalShapeFactory(config.Shapes)
 			config.Shapes = factory.Marshal()
 		} else {
-			factory = shape.UnmarshalShapeFactory(config.Shapes)
+			factory = shape.NewBasicShapeFactory([]shape.ShapeType{shape.ShapeType(config.Mode)})
 		}
 
 		for i := 0; i < config.Count; i++ {

@@ -12,11 +12,12 @@ type State struct {
 }
 
 func NewState(worker *Worker, shape shape.Shape, alpha int) *State {
-	var mutateAlpha bool
+	mutateAlpha := false
 	if alpha == 0 {
 		alpha = 128
 		mutateAlpha = true
 	}
+	alpha = clampInt(alpha, 1, 255)
 	z := worker.RandomZ()
 	return &State{worker, shape, z, alpha, mutateAlpha, -1}
 }

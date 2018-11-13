@@ -17,12 +17,49 @@ const (
 	EllipseFixedRadius
 )
 
+/*
+func (e *EllipseType) UnmarshalJSON(data []byte) error {
+    var s string
+    err := json.Unmarshal(data, &s)
+    if err != nil {
+        return err
+    }
+
+    value, ok := map[string]EllipseType{
+    	"Ellipse": EllipseAny,
+    	"Circle": EllipseCircle,
+    	"CenteredCircle": EllipseCenteredCircle,
+    	"FixedRadius": EllipseFixedRadius,
+    	}[s]
+
+    if !ok {
+        return errors.New("Invalid EllipseType value")
+    }
+    *e = value
+    return nil
+}
+
+func (e *EllipseType) MarshalJSON() ([]byte, error) {
+    value, ok := map[EllipseType]string{
+    	EllipseAny: "Ellipse",
+    	EllipseCircle: "Circle",
+    	EllipseCenteredCircle: "CenteredCircle" ,
+    	EllipseFixedRadius: "FixedRadius",
+    	}[s]
+    if !ok {
+        return nil, errors.New("Invalid EllipseType value")
+    }
+    return json.Marshal(value)
+}
+*/
+
 type Ellipse struct {
 	X, Y        int
 	Rx, Ry      int
 	EllipseType EllipseType
 	CX, CY      float64
 	MaxRadius   int
+	Type        string
 }
 
 func NewEllipse() *Ellipse {

@@ -2,8 +2,8 @@ package primitive
 
 import (
 	"image"
-  "strings"
-  
+	"strings"
+
 	"github.com/laramiel/primitive/primitive/shape"
 )
 
@@ -43,7 +43,8 @@ func (s *BestColor) Select(target, current *image.RGBA, lines []shape.Scanline, 
 	r := clampInt(int(rsum/count)>>8, 0, 255)
 	g := clampInt(int(gsum/count)>>8, 0, 255)
 	b := clampInt(int(bsum/count)>>8, 0, 255)
-	return Color{r, g, b, alpha}
+	result := Color{r, g, b, alpha}
+	return result
 }
 
 type BestGreyscale struct {
@@ -72,7 +73,8 @@ func (s *BestGreyscale) Select(target, current *image.RGBA, lines []shape.Scanli
 		return Color{}
 	}
 	bw := clampInt(int(sum/count)>>8, 0, 255)
-	return Color{bw, bw, bw, alpha}
+	result := Color{bw, bw, bw, alpha}
+	return result
 }
 
 type BestAlpha struct {
@@ -92,11 +94,11 @@ func (s *BestAlpha) Select(target, current *image.RGBA, lines []shape.Scanline, 
 			cg := int(current.Pix[i+1])
 			cb := int(current.Pix[i+2])
 			i += 4
-			rsum += int64((tr-cr))
+			rsum += int64((tr - cr))
 			ssum += int64(cr)
-			gsum += int64((tg-cg))
+			gsum += int64((tg - cg))
 			hsum += int64(cg)
-			bsum += int64((tb-cb))
+			bsum += int64((tb - cb))
 			csum += int64(cb)
 			count++
 		}
@@ -107,12 +109,13 @@ func (s *BestAlpha) Select(target, current *image.RGBA, lines []shape.Scanline, 
 	r := clampInt(int(rsum/count)>>8, 0, 255)
 	g := clampInt(int(gsum/count)>>8, 0, 255)
 	b := clampInt(int(bsum/count)>>8, 0, 255)
-	return Color{r, g, b, alpha}
+	result := Color{r, g, b, alpha}
+	return result
 }
 
 type selectedColors struct {
-	colors []Color	
-	b BestColor
+	colors []Color
+	b      BestColor
 }
 
 func (s *selectedColors) Select(target, current *image.RGBA, lines []shape.Scanline, alpha int) Color {
@@ -121,35 +124,37 @@ func (s *selectedColors) Select(target, current *image.RGBA, lines []shape.Scanl
 	}
 	best := s.b.Select(target, current, lines, alpha)
 
-	selected := best	
-	var delta int = 256 * 256 * 256;
+	selected := best
+	var delta int = 256 * 256 * 256
 	for _, c := range s.colors {
 		d := c.Delta(&best)
-		x := d.R + d.B + d.G 
+		x := d.R + d.B + d.G
 		if x < delta {
 			selected = c
 			delta = x
 		}
 	}
-	selected.A = alpha
 	return selected
 }
 
 func MakeColorPicker(config string) ColorPicker {
+	if config == "" {
+		return &BestColor{}
+	}
 	if config == "greyscale" {
 		return &BestGreyscale{}
 	}
 	if config == "alpha" {
-		return &BestAlpha{}		
+		return &BestAlpha{}
 	}
 
 	var colors []Color
-	for _, v := range strings.Split(config, "," ) {
+	for _, v := range strings.Split(config, ",") {
 		c := MakeHexColor(v)
 		colors = append(colors, c)
 	}
 	if len(colors) == 0 {
 		return &BestColor{}
 	}
-	return &selectedColors{colors, BestColor{}}	
+	return &selectedColors{colors, BestColor{}}
 }

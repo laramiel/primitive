@@ -20,21 +20,27 @@ func (c *Color) Delta(color *Color) Color {
 	if x.R < 0 {
 		x.R = -x.R
 	}
+	x.R = clampInt(x.R, 0, 255)
 	if x.G < 0 {
 		x.G = -x.G
 	}
+	x.G = clampInt(x.G, 0, 255)
 	if x.B < 0 {
 		x.B = -x.B
 	}
-	if c.A < 0 {
+	x.B = clampInt(x.B, 0, 255)
+	if x.A < 0 {
 		x.A = -x.A
 	}
+	x.A = clampInt(x.A, 0, 255)
 	return x
 }
 
 func MakeColor(c color.Color) Color {
 	r, g, b, a := c.RGBA()
-	return Color{int(r / 257), int(g / 257), int(b / 257), int(a / 257)}
+	result := Color{int(r / 257), int(g / 257), int(b / 257), int(a / 257)}
+	vv("%v\n", result)
+	return result
 }
 
 func MakeHexColor(x string) Color {
@@ -58,7 +64,9 @@ func MakeHexColor(x string) Color {
 	case 8:
 		fmt.Sscanf(x, "%02x%02x%02x%02x", &r, &g, &b, &a)
 	}
-	return Color{r, g, b, a}
+	result := Color{r, g, b, a}
+	vv("%v\n", result)
+	return result
 }
 
 // MostFrequentImageColor returns the average color in the image.
