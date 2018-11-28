@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"strings"
 	"time"
+	// "sync/atomic"
 
 	"github.com/fogleman/gg"
 	"github.com/golang/freetype/raster"
@@ -26,6 +27,7 @@ type Model struct {
 	Colors      []Color
 	Scores      []float64
 	Workers     []*Worker
+	counter     int64
 }
 
 func NewModel(target image.Image, background Color, size int, picker ColorPicker) *Model {

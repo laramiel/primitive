@@ -1,12 +1,9 @@
 package shape
 
-import (
-	"encoding/json"
-)
 
 type BasicShapes struct {
-	t    ShapeType
-	mask uint32
+	T    ShapeType
+	Mask uint32
 }
 
 const biggest = int(ShapeTypePolygon)
@@ -33,10 +30,10 @@ func NewBasicShapeFactory(t []ShapeType) ShapeFactory {
 
 func (factory *BasicShapes) MakeShape(plane *Plane) Shape {
 
-	t := factory.t
+	t := factory.T
 	for t == ShapeTypeAny {
 		v := plane.Rnd.Intn(biggest - 1)
-		if factory.mask&(1<<uint32(v)) != 0 {
+		if factory.Mask&(1<<uint32(v)) != 0 {
 			t = ShapeType(v + 1)
 		}
 	}
@@ -69,11 +66,6 @@ func (factory *BasicShapes) MakeShape(plane *Plane) Shape {
 	return s
 }
 
-func (factory *BasicShapes) Marshal() string {
-	str, _ := json.Marshal(factory)
-	return string(str)
-}
-
 // SelectedShapes allows the caller to add specific shapes.
 // factory := NewSelectedShapeFactory()
 // factory.AddShape(NewRadialLine(centerX, centerY))
@@ -87,7 +79,8 @@ func NewSelectedShapeFactory() *SelectedShapes {
 }
 
 func (factory *SelectedShapes) MakeShape(plane *Plane) Shape {
-	s := factory.Shapes[plane.Rnd.Intn(len(factory.Shapes))].Copy()
+	i := factory.Shapes[plane.Rnd.Intn(len(factory.Shapes))]
+	s := i.Copy()
 	s.Init(plane)
 	return s
 }
@@ -95,34 +88,4 @@ func (factory *SelectedShapes) MakeShape(plane *Plane) Shape {
 func (factory *SelectedShapes) AddShape(shape Shape) {
 	factory.Shapes = append(factory.Shapes, shape)
 	vv("Shape: %v\n", shape)
-}
-
-func (factory *SelectedShapes) MarshalJSON() (b []byte, e error) {
-	var data []json.RawMessage
-	for _, v := range factory.Shapes {
-		b, e := MarshalShape(v)
-		if e == nil {
-			data = append(data, json.RawMessage(b))
-		}
-	}
-	return json.Marshal(data)
-}
-
-func (factory *SelectedShapes) Marshal() string {
-	str, _ := json.Marshal(factory)
-	return string(str)
-}
-
-func UnmarshalShapeFactory(data string) ShapeFactory {
-	mydata := []byte(data)
-	basic := BasicShapes{}
-	if err := json.Unmarshal(mydata, &basic); err == nil {
-		return &basic
-	}
-
-	selected := SelectedShapes{}
-	if err := json.Unmarshal(mydata, &selected); err == nil {
-		return &selected
-	}
-	panic("Unmarshal failed.")
 }

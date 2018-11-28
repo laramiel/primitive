@@ -7,6 +7,8 @@ import (
 	"github.com/fogleman/gg"
 )
 
+
+// TODO: FixedAspectRatioRectangle
 type Rectangle struct {
 	X1, Y1 int
 	X2, Y2 int
@@ -22,6 +24,7 @@ func (r *Rectangle) Init(plane *Plane) {
 	r.Y1 = rnd.Intn(plane.H)
 	r.X2 = clampInt(r.X1+rnd.Intn(32)+1, 0, plane.W-1)
 	r.Y2 = clampInt(r.Y1+rnd.Intn(32)+1, 0, plane.H-1)
+	r.mutateImpl(plane, 1.0, 1)
 }
 
 func (r *Rectangle) bounds() (x1, y1, x2, y2 int) {
@@ -36,7 +39,7 @@ func (r *Rectangle) bounds() (x1, y1, x2, y2 int) {
 	return
 }
 
-func (r *Rectangle) Draw(dc *gg.Context, scale float64) {
+func (r *Rectangle) Draw(dc *gg.Context, temp float64) {
 	x1, y1, x2, y2 := r.bounds()
 	dc.DrawRectangle(float64(x1), float64(y1), float64(x2-x1+1), float64(y2-y1+1))
 	dc.Fill()
@@ -56,18 +59,56 @@ func (r *Rectangle) Copy() Shape {
 	return &a
 }
 
-func (r *Rectangle) Mutate(plane *Plane) {
+func (r *Rectangle) Mutate(plane *Plane, temp float64) {
+	r.mutateImpl(plane, temp, 10)
+}
+
+func (r *Rectangle) mutateImpl(plane *Plane, temp float64, rollback int) {
 	w := plane.W
 	h := plane.H
 	rnd := plane.Rnd
-	switch rnd.Intn(2) {
-	case 0:
-		r.X1 = clampInt(r.X1+int(rnd.NormFloat64()*16), 0, w-1)
-		r.Y1 = clampInt(r.Y1+int(rnd.NormFloat64()*16), 0, h-1)
-	case 1:
-		r.X2 = clampInt(r.X2+int(rnd.NormFloat64()*16), 0, w-1)
-		r.Y2 = clampInt(r.Y2+int(rnd.NormFloat64()*16), 0, h-1)
+	scale := 16 * temp
+	save := *r
+	for {
+		a := int(rnd.NormFloat64()*scale)
+		b := int(rnd.NormFloat64()*scale)
+		switch rnd.Intn(4) {
+		case 0: // Mutate
+			r.X1 = clampInt(r.X1+a, 0, w-1)
+			r.Y1 = clampInt(r.Y1+b, 0, h-1)
+		case 1:
+			r.X2 = clampInt(r.X2+a, 0, w-1)
+			r.Y2 = clampInt(r.Y2+b, 0, h-1)
+		case 2: // Translate
+			r.X1 = clampInt(r.X1+a, 0, w-1)
+			r.Y1 = clampInt(r.Y1+b, 0, h-1)
+			r.X2 = clampInt(r.X2+a, 0, w-1)
+			r.Y2 = clampInt(r.Y2+b, 0, h-1)
+		case 3: // Move
+			r.X1 = clampInt(r.X1+a, 0, w-1)
+			r.Y1 = clampInt(r.Y1+a, 0, h-1)
+			r.X2 = clampInt(r.X2+a, 0, w-1)
+			r.Y2 = clampInt(r.Y2+a, 0, h-1)
+		}
+		if r.Valid() {
+			break
+		}
+		if rollback > 0 {
+			*r = save
+			rollback -= 1
+		}
 	}
+}
+
+func (r *Rectangle) Valid() bool {
+	a, b := r.X1 - r.X2, r.Y1 - r.Y2
+	if a < 0 {
+		a = -a
+	}
+	if b < 0 {
+		b = -b
+	}
+	return a > 2 && b > 2
 }
 
 func (r *Rectangle) Rasterize(rc *RasterContext) []Scanline {
@@ -96,7 +137,7 @@ func (r *RotatedRectangle) Init(plane *Plane) {
 	r.Sx = rnd.Intn(32) + 1
 	r.Sy = rnd.Intn(32) + 1
 	r.Angle = rnd.Intn(360)
-	r.Mutate(plane)
+	r.mutateImpl(plane, 1.0, 1)
 }
 
 func (r *RotatedRectangle) Draw(dc *gg.Context, scale float64) {
@@ -120,24 +161,37 @@ func (r *RotatedRectangle) Copy() Shape {
 	return &a
 }
 
-func (r *RotatedRectangle) Mutate(plane *Plane) {
+func (r *RotatedRectangle) Mutate(plane *Plane, temp float64) {
+	r.mutateImpl(plane, temp, 10)
+}
+
+func (r *RotatedRectangle) mutateImpl(plane *Plane, temp float64, rollback int) {
 	w := plane.W
 	h := plane.H
 	rnd := plane.Rnd
-	switch rnd.Intn(3) {
-	case 0:
-		r.X = clampInt(r.X+int(rnd.NormFloat64()*16), 0, w-1)
-		r.Y = clampInt(r.Y+int(rnd.NormFloat64()*16), 0, h-1)
-	case 1:
-		r.Sx = clampInt(r.Sx+int(rnd.NormFloat64()*16), 1, w-1)
-		r.Sy = clampInt(r.Sy+int(rnd.NormFloat64()*16), 1, h-1)
-	case 2:
-		r.Angle = r.Angle + int(rnd.NormFloat64()*32)
+	scale := 16 * temp
+	save := *r
+	for {
+		a := int(rnd.NormFloat64()*scale)
+		b := int(rnd.NormFloat64()*scale)
+		switch rnd.Intn(3) {
+		case 0: // Move Origin
+			r.X = clampInt(r.X+a, 0, w-1)
+			r.Y = clampInt(r.Y+b, 0, h-1)
+		case 1: // Resize
+			r.Sx = clampInt(r.Sx+a, 1, w-1)
+			r.Sy = clampInt(r.Sy+b, 1, h-1)
+		case 2: // Rotate
+			r.Angle = r.Angle + a + a;
+		}
+		if r.Valid() {
+			break
+		}
+		if rollback > 0 {
+			*r = save
+			rollback -= 1
+		}
 	}
-	// for !r.Valid() {
-	// 	r.Sx = clampInt(r.Sx+int(rnd.NormFloat64()*16), 0, w-1)
-	// 	r.Sy = clampInt(r.Sy+int(rnd.NormFloat64()*16), 0, h-1)
-	// }
 }
 
 func (r *RotatedRectangle) Valid() bool {

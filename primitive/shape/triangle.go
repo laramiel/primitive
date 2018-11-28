@@ -32,7 +32,7 @@ func (t *Triangle) Init(plane *Plane) {
 	t.Y2 = t.Y1 + rnd.Intn(31) - 15
 	t.X3 = t.X1 + rnd.Intn(31) - 15
 	t.Y3 = t.Y1 + rnd.Intn(31) - 15
-	t.Mutate(plane)
+	t.mutateImpl(plane, 1.0, 2)
 }
 
 func (t *Triangle) Draw(dc *gg.Context, scale float64) {
@@ -54,25 +54,69 @@ func (t *Triangle) Copy() Shape {
 	return &a
 }
 
-func (t *Triangle) Mutate(plane *Plane) {
+func rotateAngle(x, y int, x0, y0 int, cos, sin float64) (int, int) {
+	xd := float64(x - x0)
+	yd := float64(y - y0)
+	return int(xd*cos -yd*sin + float64(x0)), int(xd * sin + yd * cos + float64(y0))
+}
+
+func (t *Triangle) Mutate(plane *Plane, temp float64) {
+	t.mutateImpl(plane, temp, 100)
+}
+
+func (t *Triangle) mutateImpl(plane *Plane, temp float64, rollback int) {
 	w := plane.W
 	h := plane.H
 	rnd := plane.Rnd
 	const m = 16
+	scale := 16 * temp
+	save := *t
 	for {
-		switch rnd.Intn(3) {
+		switch rnd.Intn(5) {
+			// Move.
 		case 0:
-			t.X1 = clampInt(t.X1+int(rnd.NormFloat64()*16), -m, w-1+m)
-			t.Y1 = clampInt(t.Y1+int(rnd.NormFloat64()*16), -m, h-1+m)
+			t.X1 = clampInt(t.X1+int(rnd.NormFloat64()*scale), -m, w-1+m)
+			t.Y1 = clampInt(t.Y1+int(rnd.NormFloat64()*scale), -m, h-1+m)
 		case 1:
-			t.X2 = clampInt(t.X2+int(rnd.NormFloat64()*16), -m, w-1+m)
-			t.Y2 = clampInt(t.Y2+int(rnd.NormFloat64()*16), -m, h-1+m)
+			t.X2 = clampInt(t.X2+int(rnd.NormFloat64()*scale), -m, w-1+m)
+			t.Y2 = clampInt(t.Y2+int(rnd.NormFloat64()*scale), -m, h-1+m)
 		case 2:
-			t.X3 = clampInt(t.X3+int(rnd.NormFloat64()*16), -m, w-1+m)
-			t.Y3 = clampInt(t.Y3+int(rnd.NormFloat64()*16), -m, h-1+m)
+			t.X3 = clampInt(t.X3+int(rnd.NormFloat64()*scale), -m, w-1+m)
+			t.Y3 = clampInt(t.Y3+int(rnd.NormFloat64()*scale), -m, h-1+m)
+
+		case 3: // Shift
+			a := int(rnd.NormFloat64()*scale)
+			b := int(rnd.NormFloat64()*scale)
+			t.X1 = clampInt(t.X1+a, -m, w-1+m)
+			t.Y1 = clampInt(t.Y1+b, -m, h-1+m)
+			t.X2 = clampInt(t.X2+a, -m, w-1+m)
+			t.Y2 = clampInt(t.Y2+b, -m, h-1+m)
+			t.X3 = clampInt(t.X3+a, -m, w-1+m)
+			t.Y3 = clampInt(t.Y3+b, -m, h-1+m)
+		case 4: // Rotate 
+			cx := (t.X1 + t.X2 + t.X3) / 3
+			cy := (t.Y1 + t.Y2 + t.Y3) / 3
+			angle := rnd.NormFloat64()*scale* math.Pi / 4
+			cos := math.Cos(angle)
+			sin := math.Sin(angle)
+
+			var a, b int
+			a, b = rotateAngle(t.X1, t.Y1, cx, cy, cos, sin) 
+			t.X1 = clampInt(a, -m, w-1+m)
+			t.Y1 = clampInt(b, -m, h-1+m)
+			a, b = rotateAngle(t.X2, t.Y2, cx, cy, cos, sin) 
+			t.X2 = clampInt(a, -m, w-1+m)
+			t.Y2 = clampInt(b, -m, h-1+m)
+			a, b = rotateAngle(t.X2, t.Y2, cx, cy, cos, sin) 
+			t.X3 = clampInt(a, -m, w-1+m)
+			t.Y3 = clampInt(b, -m, h-1+m)
 		}
 		if t.Valid() {
 			break
+		}
+		if rollback > 0 {
+			*t = save
+			rollback -= 1
 		}
 	}
 }

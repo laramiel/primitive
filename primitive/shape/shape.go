@@ -18,21 +18,19 @@ type RasterContext struct {
 	Rasterizer *raster.Rasterizer
 }
 
+// TODO: Shape should have an area method.
+
 type Shape interface {
 	Init(*Plane)
 	Rasterize(*RasterContext) []Scanline
 	Copy() Shape
-	Mutate(*Plane)
+	Mutate(*Plane, float64)
 	Draw(dc *gg.Context, scale float64)
 	SVG(attrs string) string
 }
 
 type ShapeFactory interface {
 	MakeShape(*Plane) Shape
-
-	// Marshal marshals the factory into a JSON string which can be
-	// unmarshalled by UnmarshalShapeFactory()
-	Marshal() string
 }
 
 type ShapeType int

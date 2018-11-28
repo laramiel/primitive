@@ -7,7 +7,7 @@ import (
 
 type Annealable interface {
 	Energy() float64
-	DoMove() interface{}
+	DoMove(temp float64) interface{}
 	UndoMove(interface{})
 	Copy() Annealable
 }
@@ -18,7 +18,7 @@ func HillClimb(state Annealable, maxAge int) Annealable {
 	bestEnergy := state.Energy()
 	step := 0
 	for age := 0; age < maxAge; age++ {
-		undo := state.DoMove()
+		undo := state.DoMove(1.0)
 		energy := state.Energy()
 		if energy >= bestEnergy {
 			state.UndoMove(undo)
@@ -38,7 +38,7 @@ func PreAnneal(state Annealable, iterations int) float64 {
 	previous := state.Energy()
 	var total float64
 	for i := 0; i < iterations; i++ {
-		state.DoMove()
+		state.DoMove(1.0)
 		energy := state.Energy()
 		total += math.Abs(energy - previous)
 		previous = energy
@@ -55,7 +55,7 @@ func Anneal(state Annealable, maxTemp, minTemp float64, steps int) Annealable {
 	for step := 0; step < steps; step++ {
 		pct := float64(step) / float64(steps-1)
 		temp := maxTemp * math.Exp(factor*pct)
-		undo := state.DoMove()
+		undo := state.DoMove(1.0)
 		energy := state.Energy()
 		change := energy - previousEnergy
 		if change > 0 && math.Exp(-change/temp) < rand.Float64() {

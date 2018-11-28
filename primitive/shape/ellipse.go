@@ -8,6 +8,7 @@ import (
 	"github.com/golang/freetype/raster"
 )
 
+
 type EllipseType int
 
 const (
@@ -16,42 +17,6 @@ const (
 	EllipseCenteredCircle
 	EllipseFixedRadius
 )
-
-/*
-func (e *EllipseType) UnmarshalJSON(data []byte) error {
-    var s string
-    err := json.Unmarshal(data, &s)
-    if err != nil {
-        return err
-    }
-
-    value, ok := map[string]EllipseType{
-    	"Ellipse": EllipseAny,
-    	"Circle": EllipseCircle,
-    	"CenteredCircle": EllipseCenteredCircle,
-    	"FixedRadius": EllipseFixedRadius,
-    	}[s]
-
-    if !ok {
-        return errors.New("Invalid EllipseType value")
-    }
-    *e = value
-    return nil
-}
-
-func (e *EllipseType) MarshalJSON() ([]byte, error) {
-    value, ok := map[EllipseType]string{
-    	EllipseAny: "Ellipse",
-    	EllipseCircle: "Circle",
-    	EllipseCenteredCircle: "CenteredCircle" ,
-    	EllipseFixedRadius: "FixedRadius",
-    	}[s]
-    if !ok {
-        return nil, errors.New("Invalid EllipseType value")
-    }
-    return json.Marshal(value)
-}
-*/
 
 type Ellipse struct {
 	X, Y        int
@@ -132,7 +97,7 @@ func (c *Ellipse) Copy() Shape {
 	return &a
 }
 
-func (c *Ellipse) Mutate(plane *Plane) {
+func (c *Ellipse) Mutate(plane *Plane, temp float64) {
 	w := plane.W
 	h := plane.H
 	rnd := plane.Rnd
@@ -148,17 +113,20 @@ func (c *Ellipse) Mutate(plane *Plane) {
 	if c.MaxRadius > 0 {
 		maxr = c.MaxRadius
 	}
+	scale := 16 * temp
+	a := int(rnd.NormFloat64()*scale)
 	switch id {
 	case 0:
-		c.X = clampInt(c.X+int(rnd.NormFloat64()*16), 0, w-1)
-		c.Y = clampInt(c.Y+int(rnd.NormFloat64()*16), 0, h-1)
+		b := int(rnd.NormFloat64()*scale)
+		c.X = clampInt(c.X+a, 0, w-1)
+		c.Y = clampInt(c.Y+b, 0, h-1)
 	case 1:
-		c.Rx = clampInt(c.Rx+int(rnd.NormFloat64()*16), 1, maxr)
+		c.Rx = clampInt(c.Rx+a, 1, maxr)
 		if c.EllipseType == EllipseCircle || c.EllipseType == EllipseCenteredCircle {
 			c.Ry = c.Rx
 		}
 	case 2:
-		c.Ry = clampInt(c.Ry+int(rnd.NormFloat64()*16), 1, maxr)
+		c.Ry = clampInt(c.Ry+a, 1, maxr)
 		if c.EllipseType == EllipseCircle || c.EllipseType == EllipseCenteredCircle {
 			c.Rx = c.Ry
 		}
@@ -240,7 +208,7 @@ func (c *RotatedEllipse) Copy() Shape {
 	return &a
 }
 
-func (c *RotatedEllipse) Mutate(plane *Plane) {
+func (c *RotatedEllipse) Mutate(plane *Plane, temp float64) {
 	w := plane.W
 	h := plane.H
 	rnd := plane.Rnd
@@ -249,16 +217,16 @@ func (c *RotatedEllipse) Mutate(plane *Plane) {
 	if c.MaxRadius > 0 {
 		maxr = c.MaxRadius
 	}
-
+	scale := 16 * temp
 	switch rnd.Intn(3) {
 	case 0:
-		c.X = clamp(c.X+rnd.NormFloat64()*16, 0, float64(w-1))
-		c.Y = clamp(c.Y+rnd.NormFloat64()*16, 0, float64(h-1))
+		c.X = clamp(c.X+rnd.NormFloat64()*scale, 0, float64(w-1))
+		c.Y = clamp(c.Y+rnd.NormFloat64()*scale, 0, float64(h-1))
 	case 1:
-		c.Rx = clamp(c.Rx+rnd.NormFloat64()*16, 1, float64(maxr))
-		c.Ry = clamp(c.Ry+rnd.NormFloat64()*16, 1, float64(maxr))
+		c.Rx = clamp(c.Rx+rnd.NormFloat64()*scale, 1, float64(maxr))
+		c.Ry = clamp(c.Ry+rnd.NormFloat64()*scale, 1, float64(maxr))
 	case 2:
-		c.Angle = c.Angle + rnd.NormFloat64()*32
+		c.Angle = c.Angle + rnd.NormFloat64()*32*temp
 	}
 }
 

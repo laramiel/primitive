@@ -31,7 +31,7 @@ func (p *Polygon) Init(plane *Plane) {
 		p.X[i] = p.X[0] + rnd.Float64()*40 - 20
 		p.Y[i] = p.Y[0] + rnd.Float64()*40 - 20
 	}
-	p.Mutate(plane)
+	p.mutateImpl(plane, 1.0, 1)
 }
 
 func (p *Polygon) Draw(dc *gg.Context, scale float64) {
@@ -64,23 +64,42 @@ func (p *Polygon) Copy() Shape {
 	return &a
 }
 
-func (p *Polygon) Mutate(plane *Plane) {
+func (p *Polygon) Mutate(plane *Plane, temp float64) {
+	p.mutateImpl(plane, temp, 10)
+}
+
+func (p *Polygon) mutateImpl(plane *Plane, temp float64, rollback int) {
 	const m = 16
 	w := plane.W
 	h := plane.H
 	rnd := plane.Rnd
+	scale := 16 * temp
 	for {
 		if rnd.Float64() < 0.25 {
+			// Swap a point
 			i := rnd.Intn(p.Order)
 			j := rnd.Intn(p.Order)
 			p.X[i], p.Y[i], p.X[j], p.Y[j] = p.X[j], p.Y[j], p.X[i], p.Y[i]
+			if p.Valid() {
+				break
+			}
+			if rollback > 0 {
+				p.X[i], p.Y[i], p.X[j], p.Y[j] = p.X[j], p.Y[j], p.X[i], p.Y[i]
+				rollback -= 1
+			}
 		} else {
+			// Move a point
 			i := rnd.Intn(p.Order)
-			p.X[i] = clamp(p.X[i]+rnd.NormFloat64()*16, -m, float64(w-1+m))
-			p.Y[i] = clamp(p.Y[i]+rnd.NormFloat64()*16, -m, float64(h-1+m))
-		}
-		if p.Valid() {
-			break
+			xsave, ysave := p.X[i], p.Y[i]
+			p.X[i] = clamp(p.X[i]+rnd.NormFloat64()*scale, -m, float64(w-1+m))
+			p.Y[i] = clamp(p.Y[i]+rnd.NormFloat64()*scale, -m, float64(h-1+m))
+			if p.Valid() {
+				break
+			}
+			if rollback > 0 {
+				p.X[i], p.Y[i] = xsave, ysave
+				rollback -= 1
+			}
 		}
 	}
 }

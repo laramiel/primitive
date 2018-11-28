@@ -14,11 +14,13 @@ type Quadratic struct {
 	X3, Y3       float64
 	Width        float64
 	MaxLineWidth float64
+	MinLineWidth float64
 }
 
 func NewQuadratic() *Quadratic {
 	q := &Quadratic{}
 	q.MaxLineWidth = 1.0 / 2
+	q.MinLineWidth = 0.2
 	return q
 }
 
@@ -31,7 +33,7 @@ func (q *Quadratic) Init(plane *Plane) {
 	q.X3 = q.X2 + rnd.Float64()*40 - 20
 	q.Y3 = q.Y2 + rnd.Float64()*40 - 20
 	q.Width = 1.0 / 2
-	q.Mutate(plane)
+	q.mutateImpl(plane, 1.0, 1)
 }
 
 func (q *Quadratic) Draw(dc *gg.Context, scale float64) {
@@ -54,27 +56,43 @@ func (q *Quadratic) Copy() Shape {
 	return &a
 }
 
-func (q *Quadratic) Mutate(plane *Plane) {
+func (q *Quadratic) Mutate(plane *Plane, temp float64) {
+	q.mutateImpl(plane, temp, 10)
+}
+
+func (q *Quadratic) mutateImpl(plane *Plane, temp float64, rollback int) {
 	const m = 16
 	w := plane.W
 	h := plane.H
 	rnd := plane.Rnd
+	scale := temp * 16
+	save := *q
 	for {
 		switch rnd.Intn(4) {
 		case 0:
-			q.X1 = clamp(q.X1+rnd.NormFloat64()*16, -m, float64(w-1+m))
-			q.Y1 = clamp(q.Y1+rnd.NormFloat64()*16, -m, float64(h-1+m))
+			a := rnd.NormFloat64()*scale
+			b := rnd.NormFloat64()*scale
+			q.X1 = clamp(q.X1+a, -m, float64(w-1+m))
+			q.Y1 = clamp(q.Y1+b, -m, float64(h-1+m))
 		case 1:
-			q.X2 = clamp(q.X2+rnd.NormFloat64()*16, -m, float64(w-1+m))
-			q.Y2 = clamp(q.Y2+rnd.NormFloat64()*16, -m, float64(h-1+m))
+			a := rnd.NormFloat64()*scale
+			b := rnd.NormFloat64()*scale
+			q.X2 = clamp(q.X2+a, -m, float64(w-1+m))
+			q.Y2 = clamp(q.Y2+b, -m, float64(h-1+m))
 		case 2:
-			q.X3 = clamp(q.X3+rnd.NormFloat64()*16, -m, float64(w-1+m))
-			q.Y3 = clamp(q.Y3+rnd.NormFloat64()*16, -m, float64(h-1+m))
+			a := rnd.NormFloat64()*scale
+			b := rnd.NormFloat64()*scale
+			q.X3 = clamp(q.X3+a, -m, float64(w-1+m))
+			q.Y3 = clamp(q.Y3+b, -m, float64(h-1+m))
 		case 3:
-			q.Width = clamp(q.Width+rnd.NormFloat64(), 0.25, q.MaxLineWidth)
+			q.Width = clamp(q.Width+rnd.NormFloat64()* temp, q.MinLineWidth, q.MaxLineWidth)
 		}
 		if q.Valid() {
 			break
+		}
+		if rollback > 0 {
+			*q = save
+			rollback -= 1
 		}
 	}
 }

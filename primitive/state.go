@@ -29,9 +29,9 @@ func (state *State) Energy() float64 {
 	return state.Score
 }
 
-func (state *State) DoMove() interface{} {
+func (state *State) DoMove(temp float64) interface{} {
 	oldState := state.Copy()
-	state.Shape.Mutate(&state.Worker.Plane)
+	state.Shape.Mutate(&state.Worker.Plane, temp)
 	if state.MutateAlpha {
 		rnd := state.Worker.Plane.Rnd
 		state.Alpha = clampInt(state.Alpha+rnd.Intn(21)-10, 1, 255)

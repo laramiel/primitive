@@ -30,7 +30,7 @@ func (q *Line) Init(plane *Plane) {
 	q.X2 = rnd.Float64() * float64(plane.W)
 	q.Y2 = rnd.Float64() * float64(plane.H)
 	q.Width = 1.0 / 2
-	q.Mutate(plane)
+	q.mutateImpl(plane, 1.0, 1)
 }
 
 func (q *Line) Draw(dc *gg.Context, scale float64) {
@@ -53,19 +53,25 @@ func (q *Line) Copy() Shape {
 	return &a
 }
 
-func (q *Line) Mutate(plane *Plane) {
+func (q *Line) Mutate(plane *Plane, temp float64) {
+	q.mutateImpl(plane, temp, 10)
+}
+
+func (q *Line) mutateImpl(plane *Plane, temp float64, rollback int) {
 	const m = 16
 	w := plane.W
 	h := plane.H
 	rnd := plane.Rnd
+	scale := 16 * temp
+	save := *q
 	for {
 		switch rnd.Intn(LineMutate) {
 		case 0:
-			q.X1 = clamp(q.X1+rnd.NormFloat64()*16, -m, float64(w-1+m))
-			q.Y1 = clamp(q.Y1+rnd.NormFloat64()*16, -m, float64(h-1+m))
+			q.X1 = clamp(q.X1+rnd.NormFloat64()*scale, -m, float64(w-1+m))
+			q.Y1 = clamp(q.Y1+rnd.NormFloat64()*scale, -m, float64(h-1+m))
 		case 1:
-			q.X2 = clamp(q.X2+rnd.NormFloat64()*16, -m, float64(w-1+m))
-			q.Y2 = clamp(q.Y2+rnd.NormFloat64()*16, -m, float64(h-1+m))
+			q.X2 = clamp(q.X2+rnd.NormFloat64()*scale, -m, float64(w-1+m))
+			q.Y2 = clamp(q.Y2+rnd.NormFloat64()*scale, -m, float64(h-1+m))
 		case 2:
 			if q.Width != q.MaxLineWidth {
 				q.Width = clamp(q.Width+rnd.NormFloat64(), 0.1, q.MaxLineWidth)
@@ -73,6 +79,10 @@ func (q *Line) Mutate(plane *Plane) {
 		}
 		if q.Valid() {
 			break
+		}
+		if rollback > 0 {
+			*q = save
+			rollback -= 1
 		}
 	}
 }
@@ -119,7 +129,7 @@ func (l *RadialLine) Init(plane *Plane) {
 	l.Line.X2 = rnd.Float64() * float64(plane.W)
 	l.Line.Y2 = rnd.Float64() * float64(plane.H)
 	l.Line.Width = 1.0 / 2
-	l.Mutate(plane)
+	l.mutateImpl(plane, 1.0, 1)
 }
 
 func (l *RadialLine) Draw(dc *gg.Context, scale float64) {
@@ -135,19 +145,25 @@ func (l *RadialLine) Copy() Shape {
 	return &a
 }
 
-func (l *RadialLine) Mutate(plane *Plane) {
+func (l *RadialLine) Mutate(plane *Plane, temp float64) {
+	l.mutateImpl(plane, temp, 10)
+}
+
+func (l *RadialLine) mutateImpl(plane *Plane, temp float64, rollback int) {
 	const MaxLineWidth = 4
 	const m = 16
 	w := plane.W
 	h := plane.H
 	rnd := plane.Rnd
+	scale := 16 * temp
+	save := *l
 	for {
 		switch rnd.Intn(LineMutate) {
 		case 0:
 			// Move along radial point
 			xd := l.Line.X2 - l.Line.X1
 			yd := l.Line.Y2 - l.Line.Y1
-			v := rnd.NormFloat64()
+			v := rnd.NormFloat64() * temp
 			l.Line.X1 = l.Line.X1 + v*xd
 			l.Line.Y1 = l.Line.Y1 + v*yd
 
@@ -155,13 +171,17 @@ func (l *RadialLine) Mutate(plane *Plane) {
 			// New radial point
 			l.Line.X1 = l.CX * float64(w)
 			l.Line.Y1 = l.CY * float64(h)
-			l.Line.X2 = clamp(l.Line.X2+rnd.NormFloat64()*16, -m, float64(w-1+m))
-			l.Line.Y2 = clamp(l.Line.Y2+rnd.NormFloat64()*16, -m, float64(h-1+m))
+			l.Line.X2 = clamp(l.Line.X2+rnd.NormFloat64()*scale, -m, float64(w-1+m))
+			l.Line.Y2 = clamp(l.Line.Y2+rnd.NormFloat64()*scale, -m, float64(h-1+m))
 		case 2:
 			l.Line.Width = clamp(l.Line.Width+rnd.NormFloat64(), 1, MaxLineWidth)
 		}
 		if l.Valid() {
 			break
+		}
+		if rollback > 0 {
+			*l = save
+			rollback -= 1
 		}
 	}
 }

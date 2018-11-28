@@ -35,7 +35,26 @@ var (
 	VV          bool
 	Seed        int64
 	ZLevels     int // TODO
+	Shapes      string
 )
+/*
+Example configs.
+
+{"SelectedShapes":{"Shapes":[
+    {"Triangle":{"X1":0,"Y1":0,"X2":0,"Y2":0,"X3":0,"Y3":0,"MaxArea":60}},
+    {"Ellipse":{"X":0,"Y":0,"Rx":3,"Ry":3,"EllipseType":3,"CX":0,"CY":0,"MaxRadius":0}},
+    {"Polygon":{"Order":5,"Convex":true,"X":null,"Y":null}}
+]}}
+
+{"SelectedShapes":{"Shapes":[
+    {"RadialLine":{"CX":0.5966666666666667,"CY":0.426,"Line":{"X1":0,"Y1":0,"X2":0,"Y2":0,"Width":0,"MaxLineWidth":0.5}}},{"RadialLine":{"CX":0.5580952380952381,"CY":0.2986666666666667,"Line":{"X1":0,"Y1":0,"X2":0,"Y2":0,"Width":0,"MaxLineWidth":0.5}}},{"Ellipse":{"X":0,"Y":0,"Rx":0,"Ry":0,"EllipseType":2,"CX":0.5966666666666667,"CY":0.426,"MaxRadius":0}},
+    {"Triangle":{"X1":0,"Y1":0,"X2":0,"Y2":0,"X3":0,"Y3":0,"MaxArea":60}},
+    {"Ellipse":{"X":0,"Y":0,"Rx":1,"Ry":1,"EllipseType":3,"CX":0,"CY":0,"MaxRadius":0}}
+]}}
+
+{"BasicShapes":{"T":0,"Mask":11}}
+
+*/
 
 type flagArray []string
 
@@ -85,7 +104,10 @@ func init() {
 	flag.BoolVar(&VV, "vv", false, "very verbose")
 	flag.Int64Var(&Seed, "seed", 0, "RNG seed")
 	flag.StringVar(&ColorPicker, "color", "", "Color picker to use")
+	flag.StringVar(&Shapes, "shapes", "", "Shape JSON data")
 }
+
+
 
 func errorMessage(message string) bool {
 	fmt.Fprintln(os.Stderr, message)
@@ -115,7 +137,7 @@ func main() {
 		Configs[0].Mode = Mode
 		Configs[0].Alpha = Alpha
 		Configs[0].Repeat = Repeat
-		Configs[0].Shapes = ""
+		Configs[0].Shapes = Shapes
 	}
 	for _, config := range Configs {
 		if config.Count < 1 {
@@ -139,7 +161,6 @@ func main() {
 	// seed random number generator
 	if Seed == 0 {
 		Seed = time.Now().UTC().UnixNano()
-		fmt.Println("--seed %d", Seed)
 	}
 	rand.Seed(Seed)
 	plog.Log(1, "-seed %d\n", Seed)
@@ -187,38 +208,18 @@ func main() {
 	for j, config := range Configs {
 		plog.Log(1, "count=%d, mode=%d, alpha=%d, repeat=%d\n",
 			config.Count, config.Mode, config.Alpha, config.Repeat)
-		/*
-			{
-				factory := shape.NewSelectedShapeFactory()
 
-				// Radial line example
-				const cX = (1051 + 202) / 2100.0
-				const cY = (437 + 202) / 1500.0
-				factory.AddShape(shape.NewRadialLine(cX, cY))
-
-				// Radial line example
-				const cX2 = 1172 / 2100.0
-				const cY2 = 448 / 1500.0
-				factory.AddShape(shape.NewRadialLine(cX2, cY2))
-
-				// Centered circle example
-				factory.AddShape(shape.NewCenteredCircle(cX, cY))
-				factory.AddShape(shape.NewMaxAreaTriangle(60))
-				factory.AddShape(shape.NewFixedCircle(1))
-
-				plog.Log(1, "%s\n", factory.Marshal())
-			}
-		*/
-		// "0=combo 1=triangle 2=rect 3=ellipse 4=circle 5=rotatedrect 6=line 7=beziers 8=rotatedellipse 9=polygon"
-		var factory shape.ShapeFactory
-		if config.Shapes == "" {
-			factory = shape.NewBasicShapeFactory([]shape.ShapeType{shape.ShapeType(1), shape.ShapeType(2), shape.ShapeType(4)})
-		} else if config.Shapes != "" {
+		var factory shape.ShapeFactory = nil
+		if config.Shapes != "" {
 			factory = shape.UnmarshalShapeFactory(config.Shapes)
-			config.Shapes = factory.Marshal()
 		} else {
+			// "0=combo 1=triangle 2=rect 3=ellipse 4=circle 5=rotatedrect 6=line 7=beziers 8=rotatedellipse 9=polygon"
+			// TODO: Multiple Shapes for a BasicShapeFactory.
 			factory = shape.NewBasicShapeFactory([]shape.ShapeType{shape.ShapeType(config.Mode)})
 		}
+		config.Shapes = shape.MarshalShapeFactory(factory)
+		plog.Log(1, "%s\n", config.Shapes)
+
 
 		for i := 0; i < config.Count; i++ {
 			frame++
