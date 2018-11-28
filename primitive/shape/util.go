@@ -61,7 +61,16 @@ func maxInt(a, b int) int {
 }
 
 func rotate(x, y, theta float64) (rx, ry float64) {
-	rx = x*math.Cos(theta) - y*math.Sin(theta)
-	ry = x*math.Sin(theta) + y*math.Cos(theta)
+	cos, sin := math.Cos(theta), math.Sin(theta)
+	rx = x*cos - y*sin
+	ry = x*sin + y*cos
 	return
+}
+
+// rotateAbout rotates the points x, y about x0, y0.
+// cos, sin are math.Cos(theta), math.Sin(theta)
+func rotateAbout(x, y int, x0, y0 int, cos, sin float64) (int, int) {
+	xd := float64(x - x0)
+	yd := float64(y - y0)
+	return int(xd*cos - yd*sin + float64(x0)), int(xd*sin + yd*cos + float64(y0))
 }

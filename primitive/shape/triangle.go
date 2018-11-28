@@ -54,12 +54,6 @@ func (t *Triangle) Copy() Shape {
 	return &a
 }
 
-func rotateAngle(x, y int, x0, y0 int, cos, sin float64) (int, int) {
-	xd := float64(x - x0)
-	yd := float64(y - y0)
-	return int(xd*cos -yd*sin + float64(x0)), int(xd * sin + yd * cos + float64(y0))
-}
-
 func (t *Triangle) Mutate(plane *Plane, temp float64) {
 	t.mutateImpl(plane, temp, 100)
 }
@@ -73,7 +67,7 @@ func (t *Triangle) mutateImpl(plane *Plane, temp float64, rollback int) {
 	save := *t
 	for {
 		switch rnd.Intn(5) {
-			// Move.
+		// Move.
 		case 0:
 			t.X1 = clampInt(t.X1+int(rnd.NormFloat64()*scale), -m, w-1+m)
 			t.Y1 = clampInt(t.Y1+int(rnd.NormFloat64()*scale), -m, h-1+m)
@@ -85,29 +79,29 @@ func (t *Triangle) mutateImpl(plane *Plane, temp float64, rollback int) {
 			t.Y3 = clampInt(t.Y3+int(rnd.NormFloat64()*scale), -m, h-1+m)
 
 		case 3: // Shift
-			a := int(rnd.NormFloat64()*scale)
-			b := int(rnd.NormFloat64()*scale)
+			a := int(rnd.NormFloat64() * scale)
+			b := int(rnd.NormFloat64() * scale)
 			t.X1 = clampInt(t.X1+a, -m, w-1+m)
 			t.Y1 = clampInt(t.Y1+b, -m, h-1+m)
 			t.X2 = clampInt(t.X2+a, -m, w-1+m)
 			t.Y2 = clampInt(t.Y2+b, -m, h-1+m)
 			t.X3 = clampInt(t.X3+a, -m, w-1+m)
 			t.Y3 = clampInt(t.Y3+b, -m, h-1+m)
-		case 4: // Rotate 
+		case 4: // Rotate
 			cx := (t.X1 + t.X2 + t.X3) / 3
 			cy := (t.Y1 + t.Y2 + t.Y3) / 3
-			angle := rnd.NormFloat64()*scale* math.Pi / 4
-			cos := math.Cos(angle)
-			sin := math.Sin(angle)
+			theta := rnd.NormFloat64() * scale * math.Pi / 4
+			cos := math.Cos(theta)
+			sin := math.Sin(theta)
 
 			var a, b int
-			a, b = rotateAngle(t.X1, t.Y1, cx, cy, cos, sin) 
+			a, b = rotateAbout(t.X1, t.Y1, cx, cy, cos, sin)
 			t.X1 = clampInt(a, -m, w-1+m)
 			t.Y1 = clampInt(b, -m, h-1+m)
-			a, b = rotateAngle(t.X2, t.Y2, cx, cy, cos, sin) 
+			a, b = rotateAbout(t.X2, t.Y2, cx, cy, cos, sin)
 			t.X2 = clampInt(a, -m, w-1+m)
 			t.Y2 = clampInt(b, -m, h-1+m)
-			a, b = rotateAngle(t.X2, t.Y2, cx, cy, cos, sin) 
+			a, b = rotateAbout(t.X2, t.Y2, cx, cy, cos, sin)
 			t.X3 = clampInt(a, -m, w-1+m)
 			t.Y3 = clampInt(b, -m, h-1+m)
 		}

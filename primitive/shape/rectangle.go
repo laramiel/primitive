@@ -7,7 +7,6 @@ import (
 	"github.com/fogleman/gg"
 )
 
-
 // TODO: FixedAspectRatioRectangle
 type Rectangle struct {
 	X1, Y1 int
@@ -70,8 +69,8 @@ func (r *Rectangle) mutateImpl(plane *Plane, temp float64, rollback int) {
 	scale := 16 * temp
 	save := *r
 	for {
-		a := int(rnd.NormFloat64()*scale)
-		b := int(rnd.NormFloat64()*scale)
+		a := int(rnd.NormFloat64() * scale)
+		b := int(rnd.NormFloat64() * scale)
 		switch rnd.Intn(4) {
 		case 0: // Mutate
 			r.X1 = clampInt(r.X1+a, 0, w-1)
@@ -101,7 +100,7 @@ func (r *Rectangle) mutateImpl(plane *Plane, temp float64, rollback int) {
 }
 
 func (r *Rectangle) Valid() bool {
-	a, b := r.X1 - r.X2, r.Y1 - r.Y2
+	a, b := r.X1-r.X2, r.Y1-r.Y2
 	if a < 0 {
 		a = -a
 	}
@@ -172,8 +171,8 @@ func (r *RotatedRectangle) mutateImpl(plane *Plane, temp float64, rollback int) 
 	scale := 16 * temp
 	save := *r
 	for {
-		a := int(rnd.NormFloat64()*scale)
-		b := int(rnd.NormFloat64()*scale)
+		a := int(rnd.NormFloat64() * scale)
+		b := int(rnd.NormFloat64() * scale)
 		switch rnd.Intn(3) {
 		case 0: // Move Origin
 			r.X = clampInt(r.X+a, 0, w-1)
@@ -182,7 +181,7 @@ func (r *RotatedRectangle) mutateImpl(plane *Plane, temp float64, rollback int) 
 			r.Sx = clampInt(r.Sx+a, 1, w-1)
 			r.Sy = clampInt(r.Sy+b, 1, h-1)
 		case 2: // Rotate
-			r.Angle = r.Angle + a + a;
+			r.Angle = r.Angle + a + a
 		}
 		if r.Valid() {
 			break

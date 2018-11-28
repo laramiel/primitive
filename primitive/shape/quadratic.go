@@ -13,8 +13,8 @@ type Quadratic struct {
 	X2, Y2       float64
 	X3, Y3       float64
 	Width        float64
-	MaxLineWidth float64
 	MinLineWidth float64
+	MaxLineWidth float64
 }
 
 func NewQuadratic() *Quadratic {
@@ -70,22 +70,22 @@ func (q *Quadratic) mutateImpl(plane *Plane, temp float64, rollback int) {
 	for {
 		switch rnd.Intn(4) {
 		case 0:
-			a := rnd.NormFloat64()*scale
-			b := rnd.NormFloat64()*scale
+			a := rnd.NormFloat64() * scale
+			b := rnd.NormFloat64() * scale
 			q.X1 = clamp(q.X1+a, -m, float64(w-1+m))
 			q.Y1 = clamp(q.Y1+b, -m, float64(h-1+m))
 		case 1:
-			a := rnd.NormFloat64()*scale
-			b := rnd.NormFloat64()*scale
+			a := rnd.NormFloat64() * scale
+			b := rnd.NormFloat64() * scale
 			q.X2 = clamp(q.X2+a, -m, float64(w-1+m))
 			q.Y2 = clamp(q.Y2+b, -m, float64(h-1+m))
 		case 2:
-			a := rnd.NormFloat64()*scale
-			b := rnd.NormFloat64()*scale
+			a := rnd.NormFloat64() * scale
+			b := rnd.NormFloat64() * scale
 			q.X3 = clamp(q.X3+a, -m, float64(w-1+m))
 			q.Y3 = clamp(q.Y3+b, -m, float64(h-1+m))
 		case 3:
-			q.Width = clamp(q.Width+rnd.NormFloat64()* temp, q.MinLineWidth, q.MaxLineWidth)
+			q.Width = clamp(q.Width+rnd.NormFloat64()*temp, q.MinLineWidth, q.MaxLineWidth)
 		}
 		if q.Valid() {
 			break

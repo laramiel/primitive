@@ -8,7 +8,6 @@ import (
 	"github.com/golang/freetype/raster"
 )
 
-
 type EllipseType int
 
 const (
@@ -67,17 +66,30 @@ func (c *Ellipse) Init(plane *Plane) {
 		c.X = rnd.Intn(plane.W)
 		c.Y = rnd.Intn(plane.H)
 	}
-	switch c.EllipseType {
-	case EllipseAny:
-		c.Rx = rnd.Intn(maxr) + 1
-		c.Ry = rnd.Intn(maxr) + 1
-	case EllipseCenteredCircle:
-		fallthrough
-	case EllipseCircle:
-		c.Rx = rnd.Intn(maxr) + 1
-		c.Ry = c.Rx
-	case EllipseFixedRadius:
-		// Don't adjust the radius
+	if maxr > 1 {
+		switch c.EllipseType {
+		case EllipseAny:
+			c.Rx = rnd.Intn(maxr) + 1
+			c.Ry = rnd.Intn(maxr) + 1
+		case EllipseCenteredCircle:
+			fallthrough
+		case EllipseCircle:
+			c.Rx = rnd.Intn(maxr) + 1
+			c.Ry = c.Rx
+		case EllipseFixedRadius:
+			// Don't adjust the radius
+		}
+	} else {
+		switch c.EllipseType {
+		case EllipseAny:
+			fallthrough
+		case EllipseCenteredCircle:
+			fallthrough
+		case EllipseCircle:
+			c.Rx, c.Ry = maxr, maxr
+		case EllipseFixedRadius:
+			// Don't adjust the radius
+		}
 	}
 }
 
@@ -114,10 +126,10 @@ func (c *Ellipse) Mutate(plane *Plane, temp float64) {
 		maxr = c.MaxRadius
 	}
 	scale := 16 * temp
-	a := int(rnd.NormFloat64()*scale)
+	a := int(rnd.NormFloat64() * scale)
 	switch id {
 	case 0:
-		b := int(rnd.NormFloat64()*scale)
+		b := int(rnd.NormFloat64() * scale)
 		c.X = clampInt(c.X+a, 0, w-1)
 		c.Y = clampInt(c.Y+b, 0, h-1)
 	case 1:

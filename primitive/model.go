@@ -5,7 +5,7 @@ import (
 	"image"
 	"math/rand"
 	"strings"
-	"time"
+	// "time"
 	// "sync/atomic"
 
 	"github.com/fogleman/gg"
@@ -69,10 +69,6 @@ func NewModel(target image.Image, background Color, size int, picker ColorPicker
 }
 
 func (model *Model) Init(numWorkers int, seed int64) {
-	if seed == 0 {
-		seed = time.Now().UnixNano()
-		v("--seed=%d", seed)
-	}
 	rng := rand.New(rand.NewSource(seed))
 	for i := 0; i < numWorkers; i++ {
 		worker := NewWorker(model.Target, rng.Int63(), model.ColorPicker)
@@ -112,13 +108,13 @@ func (model *Model) Frames(scoreDelta float64) []image.Image {
 func (model *Model) SVG() string {
 	bg := model.Background
 	var lines []string
-	// lines = append(lines, fmt.Sprintf("<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"%d\" height=\"%d\">", model.Sw, model.Sh))
 	lines = append(lines, fmt.Sprintf("<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"100%%\" height=\"100%%\" preserveAspectRatio=\"none\" viewbox=\"0 0 %d %d\">", model.Sw, model.Sh))
 	lines = append(lines, fmt.Sprintf("<rect x=\"0\" y=\"0\" width=\"%d\" height=\"%d\" fill=\"#%02x%02x%02x\" />", model.Sw, model.Sh, bg.R, bg.G, bg.B))
-	lines = append(lines, fmt.Sprintf("<g transform=\"scale(%f) translate(0.5 0.5)\" fill-opacity=\"%f\">", model.Scale, float64(model.Colors[0].A)/255))
+	lines = append(lines, fmt.Sprintf("<g transform=\"scale(%f) translate(0.5 0.5)\">", model.Scale))
 	for i, shape := range model.Shapes {
 		c := model.Colors[i]
-		attrs := fmt.Sprintf("fill=\"#%02x%02x%02x\"", c.R, c.G, c.B)
+		attrs := fmt.Sprintf("fill=\"#%02x%02x%02x\" fill-opacity=\"%f\"",
+			c.R, c.G, c.B, float64(c.A)/255)
 		lines = append(lines, shape.SVG(attrs))
 	}
 	lines = append(lines, "</g>")

@@ -37,6 +37,7 @@ var (
 	ZLevels     int // TODO
 	Shapes      string
 )
+
 /*
 Example configs.
 
@@ -106,8 +107,6 @@ func init() {
 	flag.StringVar(&ColorPicker, "color", "", "Color picker to use")
 	flag.StringVar(&Shapes, "shapes", "", "Shape JSON data")
 }
-
-
 
 func errorMessage(message string) bool {
 	fmt.Fprintln(os.Stderr, message)
@@ -219,7 +218,6 @@ func main() {
 		}
 		config.Shapes = shape.MarshalShapeFactory(factory)
 		plog.Log(1, "%s\n", config.Shapes)
-
 
 		for i := 0; i < config.Count; i++ {
 			frame++

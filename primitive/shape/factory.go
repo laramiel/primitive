@@ -1,6 +1,5 @@
 package shape
 
-
 type BasicShapes struct {
 	T    ShapeType
 	Mask uint32

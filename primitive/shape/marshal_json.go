@@ -5,27 +5,45 @@ import (
 )
 
 type JsonShape struct {
-	Ellipse *Ellipse  `json:",omitempty"`
-	RotatedEllipse *RotatedEllipse  `json:",omitempty"`
-	Line *Line  `json:",omitempty"`
-	RadialLine *RadialLine  `json:",omitempty"`
-	Polygon *Polygon  `json:",omitempty"`
-	Quadratic *Quadratic  `json:",omitempty"`
-	Rectangle *Rectangle  `json:",omitempty"`
-	RotatedRectangle *RotatedRectangle  `json:",omitempty"`
-	Triangle *Triangle  `json:",omitempty"`
+	Ellipse          *Ellipse          `json:",omitempty"`
+	RotatedEllipse   *RotatedEllipse   `json:",omitempty"`
+	Line             *Line             `json:",omitempty"`
+	RadialLine       *RadialLine       `json:",omitempty"`
+	Polygon          *Polygon          `json:",omitempty"`
+	Quadratic        *Quadratic        `json:",omitempty"`
+	Rectangle        *Rectangle        `json:",omitempty"`
+	RotatedRectangle *RotatedRectangle `json:",omitempty"`
+	Triangle         *Triangle         `json:",omitempty"`
 }
 
 func (s JsonShape) toShape() Shape {
-	if s.Ellipse != nil { return s.Ellipse }
-	if s.RotatedEllipse != nil { return s.RotatedEllipse }
-	if s.Line != nil { return s.Line }
-	if s.RadialLine != nil { return s.RadialLine }
-	if s.Polygon != nil { return s.Polygon }
-	if s.Quadratic != nil { return s.Quadratic }
-	if s.Rectangle != nil { return s.Rectangle }
-	if s.RotatedRectangle != nil { return s.RotatedRectangle }
-	if s.Triangle != nil { return s.Triangle }
+	if s.Ellipse != nil {
+		return s.Ellipse
+	}
+	if s.RotatedEllipse != nil {
+		return s.RotatedEllipse
+	}
+	if s.Line != nil {
+		return s.Line
+	}
+	if s.RadialLine != nil {
+		return s.RadialLine
+	}
+	if s.Polygon != nil {
+		return s.Polygon
+	}
+	if s.Quadratic != nil {
+		return s.Quadratic
+	}
+	if s.Rectangle != nil {
+		return s.Rectangle
+	}
+	if s.RotatedRectangle != nil {
+		return s.RotatedRectangle
+	}
+	if s.Triangle != nil {
+		return s.Triangle
+	}
 	return nil
 }
 
@@ -70,7 +88,6 @@ func (s SelectedShapesForJson) toSelectedShapes() *SelectedShapes {
 	return r
 }
 
-
 func makeSelectedShapesForJson(factory *SelectedShapes) *SelectedShapesForJson {
 	r := &SelectedShapesForJson{}
 	for _, v := range factory.Shapes {
@@ -79,25 +96,23 @@ func makeSelectedShapesForJson(factory *SelectedShapes) *SelectedShapesForJson {
 	return r
 }
 
-
 type JsonFactory struct {
-	BasicShapes *BasicShapes  `json:",omitempty"`
-	SelectedShapes *SelectedShapesForJson  `json:",omitempty"`
+	BasicShapes    *BasicShapes           `json:",omitempty"`
+	SelectedShapes *SelectedShapesForJson `json:",omitempty"`
 }
 
 func makeJsonFactory(factory ShapeFactory) JsonFactory {
 	s := JsonFactory{}
 	switch v := factory.(type) {
-		case *SelectedShapes:
-			s.SelectedShapes = makeSelectedShapesForJson(v)
-		case *BasicShapes:
-			s.BasicShapes = v
-		default:
-			panic("Unhandled factory")
+	case *SelectedShapes:
+		s.SelectedShapes = makeSelectedShapesForJson(v)
+	case *BasicShapes:
+		s.BasicShapes = v
+	default:
+		panic("Unhandled factory")
 	}
 	return s
 }
-
 
 func MarshalShapeFactory(input ShapeFactory) string {
 	x := makeJsonFactory(input)
@@ -108,7 +123,6 @@ func MarshalShapeFactory(input ShapeFactory) string {
 	return string(data)
 }
 
-
 func UnmarshalShapeFactory(data string) ShapeFactory {
 	mydata := []byte(data)
 	x := JsonFactory{}
@@ -116,8 +130,11 @@ func UnmarshalShapeFactory(data string) ShapeFactory {
 		panic("Unmarshal failed.")
 	}
 
-	if x.BasicShapes != nil { return x.BasicShapes }
-	if x.SelectedShapes != nil { return x.SelectedShapes.toSelectedShapes() }
+	if x.BasicShapes != nil {
+		return x.BasicShapes
+	}
+	if x.SelectedShapes != nil {
+		return x.SelectedShapes.toSelectedShapes()
+	}
 	panic("Unmarshal failed.")
 }
-
