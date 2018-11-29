@@ -5,12 +5,13 @@ import (
 	"math"
 
 	"github.com/fogleman/gg"
+	"github.com/golang/freetype/raster"
 )
 
 type Triangle struct {
-	X1, Y1  int
-	X2, Y2  int
-	X3, Y3  int
+	X1, Y1  float64
+	X2, Y2  float64
+	X3, Y3  float64
 	MaxArea int
 }
 
@@ -26,26 +27,26 @@ func NewMaxAreaTriangle(area int) *Triangle {
 
 func (t *Triangle) Init(plane *Plane) {
 	rnd := plane.Rnd
-	t.X1 = rnd.Intn(plane.W)
-	t.Y1 = rnd.Intn(plane.H)
-	t.X2 = t.X1 + rnd.Intn(31) - 15
-	t.Y2 = t.Y1 + rnd.Intn(31) - 15
-	t.X3 = t.X1 + rnd.Intn(31) - 15
-	t.Y3 = t.Y1 + rnd.Intn(31) - 15
+	t.X1 = randomW(plane)
+	t.Y1 = randomH(plane)
+	t.X2 = t.X1 + rnd.NormFloat64()*32
+	t.Y2 = t.Y1 + rnd.NormFloat64()*32
+	t.X3 = t.X1 + rnd.NormFloat64()*32
+	t.Y3 = t.Y1 + rnd.NormFloat64()*32
 	t.mutateImpl(plane, 1.0, 2)
 }
 
 func (t *Triangle) Draw(dc *gg.Context, scale float64) {
-	dc.LineTo(float64(t.X1), float64(t.Y1))
-	dc.LineTo(float64(t.X2), float64(t.Y2))
-	dc.LineTo(float64(t.X3), float64(t.Y3))
+	dc.LineTo(t.X1, t.Y1)
+	dc.LineTo(t.X2, t.Y2)
+	dc.LineTo(t.X3, t.Y3)
 	dc.ClosePath()
 	dc.Fill()
 }
 
 func (t *Triangle) SVG(attrs string) string {
 	return fmt.Sprintf(
-		"<polygon %s points=\"%d,%d %d,%d %d,%d\" />",
+		"<polygon %s points=\"%f,%f %f,%f %f,%f\" />",
 		attrs, t.X1, t.Y1, t.X2, t.Y2, t.X3, t.Y3)
 }
 
@@ -59,51 +60,59 @@ func (t *Triangle) Mutate(plane *Plane, temp float64) {
 }
 
 func (t *Triangle) mutateImpl(plane *Plane, temp float64, rollback int) {
-	w := plane.W
-	h := plane.H
-	rnd := plane.Rnd
+	const R = math.Pi / 4.0
 	const m = 16
+	w := float64(plane.W - 1 + m)
+	h := float64(plane.H - 1 + m)
+	rnd := plane.Rnd
 	scale := 16 * temp
 	save := *t
 	for {
 		switch rnd.Intn(5) {
 		// Move.
 		case 0:
-			t.X1 = clampInt(t.X1+int(rnd.NormFloat64()*scale), -m, w-1+m)
-			t.Y1 = clampInt(t.Y1+int(rnd.NormFloat64()*scale), -m, h-1+m)
+			a := rnd.NormFloat64() * scale
+			b := rnd.NormFloat64() * scale
+			t.X1 = clamp(t.X1+a, -m, w)
+			t.Y1 = clamp(t.Y1+b, -m, h)
 		case 1:
-			t.X2 = clampInt(t.X2+int(rnd.NormFloat64()*scale), -m, w-1+m)
-			t.Y2 = clampInt(t.Y2+int(rnd.NormFloat64()*scale), -m, h-1+m)
+			a := rnd.NormFloat64() * scale
+			b := rnd.NormFloat64() * scale
+			t.X2 = clamp(t.X2+a, -m, w)
+			t.Y2 = clamp(t.Y2+b, -m, h)
 		case 2:
-			t.X3 = clampInt(t.X3+int(rnd.NormFloat64()*scale), -m, w-1+m)
-			t.Y3 = clampInt(t.Y3+int(rnd.NormFloat64()*scale), -m, h-1+m)
+			a := rnd.NormFloat64() * scale
+			b := rnd.NormFloat64() * scale
+			t.X3 = clamp(t.X3+a, -m, w)
+			t.Y3 = clamp(t.Y3+b, -m, h)
 
 		case 3: // Shift
-			a := int(rnd.NormFloat64() * scale)
-			b := int(rnd.NormFloat64() * scale)
-			t.X1 = clampInt(t.X1+a, -m, w-1+m)
-			t.Y1 = clampInt(t.Y1+b, -m, h-1+m)
-			t.X2 = clampInt(t.X2+a, -m, w-1+m)
-			t.Y2 = clampInt(t.Y2+b, -m, h-1+m)
-			t.X3 = clampInt(t.X3+a, -m, w-1+m)
-			t.Y3 = clampInt(t.Y3+b, -m, h-1+m)
+			a := rnd.NormFloat64() * scale
+			b := rnd.NormFloat64() * scale
+			t.X1 = clamp(t.X1+a, -m, w)
+			t.Y1 = clamp(t.Y1+b, -m, h)
+			t.X2 = clamp(t.X2+a, -m, w)
+			t.Y2 = clamp(t.Y2+b, -m, h)
+			t.X3 = clamp(t.X3+a, -m, w)
+			t.Y3 = clamp(t.Y3+b, -m, h)
+
 		case 4: // Rotate
 			cx := (t.X1 + t.X2 + t.X3) / 3
 			cy := (t.Y1 + t.Y2 + t.Y3) / 3
-			theta := rnd.NormFloat64() * scale * math.Pi / 4
+			theta := rnd.NormFloat64() * temp * R
 			cos := math.Cos(theta)
 			sin := math.Sin(theta)
 
-			var a, b int
+			var a, b float64
 			a, b = rotateAbout(t.X1, t.Y1, cx, cy, cos, sin)
-			t.X1 = clampInt(a, -m, w-1+m)
-			t.Y1 = clampInt(b, -m, h-1+m)
+			t.X1 = clamp(a, -m, w)
+			t.Y1 = clamp(b, -m, h)
 			a, b = rotateAbout(t.X2, t.Y2, cx, cy, cos, sin)
-			t.X2 = clampInt(a, -m, w-1+m)
-			t.Y2 = clampInt(b, -m, h-1+m)
+			t.X2 = clamp(a, -m, w)
+			t.Y2 = clamp(b, -m, h)
 			a, b = rotateAbout(t.X2, t.Y2, cx, cy, cos, sin)
-			t.X3 = clampInt(a, -m, w-1+m)
-			t.Y3 = clampInt(b, -m, h-1+m)
+			t.X3 = clamp(a, -m, w-1+m)
+			t.Y3 = clamp(b, -m, h-1+m)
 		}
 		if t.Valid() {
 			break
@@ -122,7 +131,7 @@ func (t *Triangle) Valid() bool {
 		if a < 0 {
 			a = -a
 		}
-		if a > t.MaxArea {
+		if a > float64(t.MaxArea) {
 			return false
 		}
 	}
@@ -130,10 +139,10 @@ func (t *Triangle) Valid() bool {
 	const minDegrees = 15
 	var a1, a2, a3 float64
 	{
-		x1 := float64(t.X2 - t.X1)
-		y1 := float64(t.Y2 - t.Y1)
-		x2 := float64(t.X3 - t.X1)
-		y2 := float64(t.Y3 - t.Y1)
+		x1 := t.X2 - t.X1
+		y1 := t.Y2 - t.Y1
+		x2 := t.X3 - t.X1
+		y2 := t.Y3 - t.Y1
 		d1 := math.Sqrt(x1*x1 + y1*y1)
 		d2 := math.Sqrt(x2*x2 + y2*y2)
 		x1 /= d1
@@ -143,10 +152,10 @@ func (t *Triangle) Valid() bool {
 		a1 = degrees(math.Acos(x1*x2 + y1*y2))
 	}
 	{
-		x1 := float64(t.X1 - t.X2)
-		y1 := float64(t.Y1 - t.Y2)
-		x2 := float64(t.X3 - t.X2)
-		y2 := float64(t.Y3 - t.Y2)
+		x1 := t.X1 - t.X2
+		y1 := t.Y1 - t.Y2
+		x2 := t.X3 - t.X2
+		y2 := t.Y3 - t.Y2
 		d1 := math.Sqrt(x1*x1 + y1*y1)
 		d2 := math.Sqrt(x2*x2 + y2*y2)
 		x1 /= d1
@@ -160,69 +169,10 @@ func (t *Triangle) Valid() bool {
 }
 
 func (t *Triangle) Rasterize(rc *RasterContext) []Scanline {
-	buf := rc.Lines[:0]
-	lines := rasterizeTriangle(t.X1, t.Y1, t.X2, t.Y2, t.X3, t.Y3, buf)
-	return cropScanlines(lines, rc.W, rc.H)
-}
-
-func rasterizeTriangle(x1, y1, x2, y2, x3, y3 int, buf []Scanline) []Scanline {
-	if y1 > y3 {
-		x1, x3 = x3, x1
-		y1, y3 = y3, y1
-	}
-	if y1 > y2 {
-		x1, x2 = x2, x1
-		y1, y2 = y2, y1
-	}
-	if y2 > y3 {
-		x2, x3 = x3, x2
-		y2, y3 = y3, y2
-	}
-	if y2 == y3 {
-		return rasterizeTriangleBottom(x1, y1, x2, y2, x3, y3, buf)
-	} else if y1 == y2 {
-		return rasterizeTriangleTop(x1, y1, x2, y2, x3, y3, buf)
-	} else {
-		x4 := x1 + int((float64(y2-y1)/float64(y3-y1))*float64(x3-x1))
-		y4 := y2
-		buf = rasterizeTriangleBottom(x1, y1, x2, y2, x4, y4, buf)
-		buf = rasterizeTriangleTop(x2, y2, x4, y4, x3, y3, buf)
-		return buf
-	}
-}
-
-func rasterizeTriangleBottom(x1, y1, x2, y2, x3, y3 int, buf []Scanline) []Scanline {
-	s1 := float64(x2-x1) / float64(y2-y1)
-	s2 := float64(x3-x1) / float64(y3-y1)
-	ax := float64(x1)
-	bx := float64(x1)
-	for y := y1; y <= y2; y++ {
-		a := int(ax)
-		b := int(bx)
-		ax += s1
-		bx += s2
-		if a > b {
-			a, b = b, a
-		}
-		buf = append(buf, Scanline{y, a, b, 0xffff})
-	}
-	return buf
-}
-
-func rasterizeTriangleTop(x1, y1, x2, y2, x3, y3 int, buf []Scanline) []Scanline {
-	s1 := float64(x3-x1) / float64(y3-y1)
-	s2 := float64(x3-x2) / float64(y3-y2)
-	ax := float64(x3)
-	bx := float64(x3)
-	for y := y3; y > y1; y-- {
-		ax -= s1
-		bx -= s2
-		a := int(ax)
-		b := int(bx)
-		if a > b {
-			a, b = b, a
-		}
-		buf = append(buf, Scanline{y, a, b, 0xffff})
-	}
-	return buf
+	var path raster.Path
+	path.Start(fixp(t.X1, t.Y1))
+	path.Add1(fixp(t.X2, t.Y2))
+	path.Add1(fixp(t.X3, t.Y3))
+	path.Add1(fixp(t.X1, t.Y1))
+	return fillPath(rc, path)
 }

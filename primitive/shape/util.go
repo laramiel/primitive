@@ -69,8 +69,16 @@ func rotate(x, y, theta float64) (rx, ry float64) {
 
 // rotateAbout rotates the points x, y about x0, y0.
 // cos, sin are math.Cos(theta), math.Sin(theta)
-func rotateAbout(x, y int, x0, y0 int, cos, sin float64) (int, int) {
-	xd := float64(x - x0)
-	yd := float64(y - y0)
-	return int(xd*cos - yd*sin + float64(x0)), int(xd*sin + yd*cos + float64(y0))
+func rotateAbout(x, y float64, x0, y0 float64, cos, sin float64) (float64, float64) {
+	xd := x - x0
+	yd := y - y0
+	return (xd*cos - yd*sin + x0), (xd*sin + yd*cos + y0)
+}
+
+func randomW(plane *Plane) float64 {
+	return plane.Rnd.Float64() * float64(plane.W)
+}
+
+func randomH(plane *Plane) float64 {
+	return plane.Rnd.Float64() * float64(plane.H)
 }

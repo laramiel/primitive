@@ -13,6 +13,12 @@ import (
 	"github.com/laramiel/primitive/primitive/shape"
 )
 
+type ScoredShape struct {
+	Shape shape.Shape
+	Color Color
+	Score float64
+}
+
 type Model struct {
 	Sw, Sh      int
 	Scale       float64
@@ -23,11 +29,9 @@ type Model struct {
 	RC          shape.RasterContext // Rasterizes the shape into scanlines
 	ColorPicker ColorPicker         // Picks the best color for the input scanlines
 	Score       float64
-	Shapes      []shape.Shape
-	Colors      []Color
-	Scores      []float64
 	Workers     []*Worker
 	counter     int64
+	Shapes      []ScoredShape
 }
 
 func NewModel(target image.Image, background Color, size int, picker ColorPicker) *Model {
@@ -90,12 +94,12 @@ func (model *Model) Frames(scoreDelta float64) []image.Image {
 	dc := model.newContext()
 	result = append(result, imageToRGBA(dc.Image()))
 	previous := 10.0
-	for i, shape := range model.Shapes {
-		c := model.Colors[i]
+	for _, s := range model.Shapes {
+		c := s.Color
 		dc.SetRGBA255(c.R, c.G, c.B, c.A)
-		shape.Draw(dc, model.Scale)
+		s.Shape.Draw(dc, model.Scale)
 		dc.Fill()
-		score := model.Scores[i]
+		score := s.Score
 		delta := previous - score
 		if delta >= scoreDelta {
 			previous = score
@@ -111,11 +115,11 @@ func (model *Model) SVG() string {
 	lines = append(lines, fmt.Sprintf("<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"100%%\" height=\"100%%\" preserveAspectRatio=\"none\" viewbox=\"0 0 %d %d\">", model.Sw, model.Sh))
 	lines = append(lines, fmt.Sprintf("<rect x=\"0\" y=\"0\" width=\"%d\" height=\"%d\" fill=\"#%02x%02x%02x\" />", model.Sw, model.Sh, bg.R, bg.G, bg.B))
 	lines = append(lines, fmt.Sprintf("<g transform=\"scale(%f) translate(0.5 0.5)\">", model.Scale))
-	for i, shape := range model.Shapes {
-		c := model.Colors[i]
+	for _, s := range model.Shapes {
+		c := s.Color
 		attrs := fmt.Sprintf("fill=\"#%02x%02x%02x\" fill-opacity=\"%f\"",
 			c.R, c.G, c.B, float64(c.A)/255)
-		lines = append(lines, shape.SVG(attrs))
+		lines = append(lines, s.Shape.SVG(attrs))
 	}
 	lines = append(lines, "</g>")
 	lines = append(lines, "</svg>")
@@ -130,9 +134,7 @@ func (model *Model) Add(shape shape.Shape, alpha int) {
 	score := differencePartial(model.Target, before, model.Current, model.Score, lines)
 
 	model.Score = score
-	model.Shapes = append(model.Shapes, shape)
-	model.Colors = append(model.Colors, color)
-	model.Scores = append(model.Scores, score)
+	model.Shapes = append(model.Shapes, ScoredShape{shape, color, score})
 
 	model.Context.SetRGBA255(color.R, color.G, color.B, color.A)
 	shape.Draw(model.Context, model.Scale)

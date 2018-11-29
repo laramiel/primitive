@@ -63,27 +63,33 @@ func (r *Rectangle) Mutate(plane *Plane, temp float64) {
 }
 
 func (r *Rectangle) mutateImpl(plane *Plane, temp float64, rollback int) {
+	const R = math.Pi / 4.0
 	w := plane.W
 	h := plane.H
 	rnd := plane.Rnd
 	scale := 16 * temp
 	save := *r
 	for {
-		a := int(rnd.NormFloat64() * scale)
-		b := int(rnd.NormFloat64() * scale)
-		switch rnd.Intn(4) {
+		switch rnd.Intn(5) {
 		case 0: // Mutate
+			a := int(rnd.NormFloat64() * scale)
+			b := int(rnd.NormFloat64() * scale)
 			r.X1 = clampInt(r.X1+a, 0, w-1)
 			r.Y1 = clampInt(r.Y1+b, 0, h-1)
 		case 1:
+			a := int(rnd.NormFloat64() * scale)
+			b := int(rnd.NormFloat64() * scale)
 			r.X2 = clampInt(r.X2+a, 0, w-1)
 			r.Y2 = clampInt(r.Y2+b, 0, h-1)
 		case 2: // Translate
+			a := int(rnd.NormFloat64() * scale)
+			b := int(rnd.NormFloat64() * scale)
 			r.X1 = clampInt(r.X1+a, 0, w-1)
 			r.Y1 = clampInt(r.Y1+b, 0, h-1)
 			r.X2 = clampInt(r.X2+a, 0, w-1)
 			r.Y2 = clampInt(r.Y2+b, 0, h-1)
 		case 3: // Move
+			a := int(rnd.NormFloat64() * scale)
 			r.X1 = clampInt(r.X1+a, 0, w-1)
 			r.Y1 = clampInt(r.Y1+a, 0, h-1)
 			r.X2 = clampInt(r.X2+a, 0, w-1)

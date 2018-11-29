@@ -2,6 +2,7 @@ package shape
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/fogleman/gg"
@@ -26,8 +27,8 @@ func NewQuadratic() *Quadratic {
 
 func (q *Quadratic) Init(plane *Plane) {
 	rnd := plane.Rnd
-	q.X1 = rnd.Float64() * float64(plane.W)
-	q.Y1 = rnd.Float64() * float64(plane.H)
+	q.X1 = randomW(plane)
+	q.Y1 = randomH(plane)
 	q.X2 = q.X1 + rnd.Float64()*40 - 20
 	q.Y2 = q.Y1 + rnd.Float64()*40 - 20
 	q.X3 = q.X2 + rnd.Float64()*40 - 20
@@ -61,6 +62,7 @@ func (q *Quadratic) Mutate(plane *Plane, temp float64) {
 }
 
 func (q *Quadratic) mutateImpl(plane *Plane, temp float64, rollback int) {
+	const R = math.Pi / 4.0
 	const m = 16
 	w := plane.W
 	h := plane.H
@@ -68,8 +70,8 @@ func (q *Quadratic) mutateImpl(plane *Plane, temp float64, rollback int) {
 	scale := temp * 16
 	save := *q
 	for {
-		switch rnd.Intn(4) {
-		case 0:
+		switch rnd.Intn(6) {
+		case 0: // Move
 			a := rnd.NormFloat64() * scale
 			b := rnd.NormFloat64() * scale
 			q.X1 = clamp(q.X1+a, -m, float64(w-1+m))
@@ -84,8 +86,36 @@ func (q *Quadratic) mutateImpl(plane *Plane, temp float64, rollback int) {
 			b := rnd.NormFloat64() * scale
 			q.X3 = clamp(q.X3+a, -m, float64(w-1+m))
 			q.Y3 = clamp(q.Y3+b, -m, float64(h-1+m))
-		case 3:
+		case 3: // Width
 			q.Width = clamp(q.Width+rnd.NormFloat64()*temp, q.MinLineWidth, q.MaxLineWidth)
+
+		case 4: // Shift
+			a := rnd.NormFloat64() * scale
+			b := rnd.NormFloat64() * scale
+			q.X1 = clamp(q.X1+a, -m, float64(w-1+m))
+			q.Y1 = clamp(q.Y1+b, -m, float64(h-1+m))
+			q.X2 = clamp(q.X2+a, -m, float64(w-1+m))
+			q.Y2 = clamp(q.Y2+b, -m, float64(h-1+m))
+			q.X3 = clamp(q.X3+a, -m, float64(w-1+m))
+			q.Y3 = clamp(q.Y3+b, -m, float64(h-1+m))
+
+		case 5: // Rotate
+			cx := (q.X1 + q.X2 + q.X3) / 3
+			cy := (q.Y1 + q.Y2 + q.Y3) / 3
+			theta := rnd.NormFloat64() * temp * R
+			cos := math.Cos(theta)
+			sin := math.Sin(theta)
+
+			var a, b float64
+			a, b = rotateAbout(q.X1, q.Y1, cx, cy, cos, sin)
+			q.X1 = clamp(a, -m, float64(w-1+m))
+			q.Y1 = clamp(b, -m, float64(h-1+m))
+			a, b = rotateAbout(q.X2, q.Y2, cx, cy, cos, sin)
+			q.X2 = clamp(a, -m, float64(w-1+m))
+			q.Y2 = clamp(b, -m, float64(h-1+m))
+			a, b = rotateAbout(q.X2, q.Y2, cx, cy, cos, sin)
+			q.X3 = clamp(a, -m, float64(w-1+m))
+			q.Y3 = clamp(b, -m, float64(h-1+m))
 		}
 		if q.Valid() {
 			break

@@ -47,3 +47,4 @@ const (
 	ShapeTypeRotatedEllipse
 	ShapeTypePolygon // 9
 )
+

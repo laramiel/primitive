@@ -34,7 +34,6 @@ var (
 	V           bool
 	VV          bool
 	Seed        int64
-	ZLevels     int // TODO
 	Shapes      string
 )
 
@@ -95,7 +94,6 @@ func init() {
 	flag.StringVar(&Background, "bg", "", "background color (hex)")
 	flag.IntVar(&Alpha, "a", 0, "alpha value")
 	flag.IntVar(&InputSize, "r", 256, "resize large input images to this size")
-	flag.IntVar(&ZLevels, "z", 1, "Maximum z-index")
 	flag.IntVar(&OutputSize, "s", 1024, "output image size")
 	flag.IntVar(&Mode, "m", 1, "0=combo 1=triangle 2=rect 3=ellipse 4=circle 5=rotatedrect 6=line 7=beziers 8=rotatedellipse 9=polygon")
 	flag.IntVar(&Workers, "j", 0, "number of parallel workers (default uses all cores)")

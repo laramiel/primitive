@@ -2,6 +2,7 @@ package shape
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/fogleman/gg"
@@ -25,8 +26,8 @@ func (p *Polygon) Init(plane *Plane) {
 	rnd := plane.Rnd
 	p.X = make([]float64, p.Order)
 	p.Y = make([]float64, p.Order)
-	p.X[0] = rnd.Float64() * float64(plane.W)
-	p.Y[0] = rnd.Float64() * float64(plane.H)
+	p.X[0] = randomW(plane)
+	p.Y[0] = randomH(plane)
 	for i := 1; i < p.Order; i++ {
 		p.X[i] = p.X[0] + rnd.Float64()*40 - 20
 		p.Y[i] = p.Y[0] + rnd.Float64()*40 - 20
@@ -69,36 +70,110 @@ func (p *Polygon) Mutate(plane *Plane, temp float64) {
 }
 
 func (p *Polygon) mutateImpl(plane *Plane, temp float64, rollback int) {
+	const R = math.Pi / 4.0
 	const m = 16
 	w := plane.W
 	h := plane.H
 	rnd := plane.Rnd
 	scale := 16 * temp
-	for {
-		if rnd.Float64() < 0.25 {
-			// Swap a point
-			i := rnd.Intn(p.Order)
-			j := rnd.Intn(p.Order)
-			p.X[i], p.Y[i], p.X[j], p.Y[j] = p.X[j], p.Y[j], p.X[i], p.Y[i]
-			if p.Valid() {
-				break
+	repeat := true
+	for repeat {
+		switch rnd.Intn(9) {
+		case 0:
+			{
+				// Move a point
+				i := rnd.Intn(p.Order)
+				a := rnd.NormFloat64() * scale
+				b := rnd.NormFloat64() * scale
+
+				xsave, ysave := p.X[i], p.Y[i]
+				p.X[i] = clamp(p.X[i]+a, -m, float64(w-1+m))
+				p.Y[i] = clamp(p.Y[i]+b, -m, float64(h-1+m))
+				if p.Valid() {
+					repeat = false
+					break
+				}
+				if rollback > 0 {
+					p.X[i], p.Y[i] = xsave, ysave
+					rollback -= 1
+				}
 			}
-			if rollback > 0 {
+		case 1:
+			{
+				// Swap a point
+				i := rnd.Intn(p.Order)
+				j := rnd.Intn(p.Order)
 				p.X[i], p.Y[i], p.X[j], p.Y[j] = p.X[j], p.Y[j], p.X[i], p.Y[i]
-				rollback -= 1
+				if p.Valid() {
+					repeat = false
+					break
+				}
+				if rollback > 0 {
+					p.X[i], p.Y[i], p.X[j], p.Y[j] = p.X[j], p.Y[j], p.X[i], p.Y[i]
+					rollback -= 1
+				}
 			}
-		} else {
-			// Move a point
-			i := rnd.Intn(p.Order)
-			xsave, ysave := p.X[i], p.Y[i]
-			p.X[i] = clamp(p.X[i]+rnd.NormFloat64()*scale, -m, float64(w-1+m))
-			p.Y[i] = clamp(p.Y[i]+rnd.NormFloat64()*scale, -m, float64(h-1+m))
-			if p.Valid() {
-				break
+
+		case 2:
+			{
+				// Shift all points
+				a := rnd.NormFloat64() * scale
+				b := rnd.NormFloat64() * scale
+				for i := range p.X {
+					p.X[i] = clamp(p.X[i]+a, -m, float64(w-1+m))
+					p.Y[i] = clamp(p.Y[i]+b, -m, float64(h-1+m))
+				}
+				if p.Valid() {
+					repeat = false
+					break
+				}
+				if rollback > 0 {
+					// Since we have clamp, this is not exact, but it'll have to do for now.
+					for i := range p.X {
+						p.X[i] = clamp(p.X[i]-a, -m, float64(w-1+m))
+						p.Y[i] = clamp(p.Y[i]-b, -m, float64(h-1+m))
+					}
+					rollback -= 1
+				}
 			}
-			if rollback > 0 {
-				p.X[i], p.Y[i] = xsave, ysave
-				rollback -= 1
+
+		case 3:
+			{
+				// Rotate all points
+				cx := 0.0
+				cy := 0.0
+				for i := range p.X {
+					cx += p.X[i]
+					cy += p.Y[i]
+				}
+				cx /= float64(len(p.X))
+				cy /= float64(len(p.X))
+
+				theta := rnd.NormFloat64() * temp * R
+				cos := math.Cos(theta)
+				sin := math.Sin(theta)
+
+				var a, b float64
+				for i := range p.X {
+					a, b = rotateAbout(p.X[i], p.Y[i], cx, cy, cos, sin)
+					p.X[i] = clamp(a, -m, float64(w-1+m))
+					p.Y[i] = clamp(b, -m, float64(h-1+m))
+				}
+				if p.Valid() {
+					repeat = false
+					break
+				}
+				if rollback > 0 {
+					// Since we have clamp, this is not exact, but it'll have to do for now.
+					cos := math.Cos(-theta)
+					sin := math.Sin(-theta)
+					for i := range p.X {
+						a, b = rotateAbout(p.X[i], p.Y[i], cx, cy, cos, sin)
+						p.X[i] = clamp(a, -m, float64(w-1+m))
+						p.Y[i] = clamp(b, -m, float64(h-1+m))
+					}
+					rollback -= 1
+				}
 			}
 		}
 	}

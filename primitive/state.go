@@ -5,7 +5,6 @@ import "github.com/laramiel/primitive/primitive/shape"
 type State struct {
 	Worker      *Worker
 	Shape       shape.Shape
-	Z           int
 	Alpha       int
 	MutateAlpha bool
 	Score       float64
@@ -18,8 +17,7 @@ func NewState(worker *Worker, shape shape.Shape, alpha int) *State {
 		mutateAlpha = true
 	}
 	alpha = clampInt(alpha, 1, 255)
-	z := worker.RandomZ()
-	return &State{worker, shape, z, alpha, mutateAlpha, -1}
+	return &State{worker, shape, alpha, mutateAlpha, -1}
 }
 
 func (state *State) Energy() float64 {
@@ -49,5 +47,5 @@ func (state *State) UndoMove(undo interface{}) {
 
 func (state *State) Copy() Annealable {
 	return &State{
-		state.Worker, state.Shape.Copy(), state.Z, state.Alpha, state.MutateAlpha, state.Score}
+		state.Worker, state.Shape.Copy(), state.Alpha, state.MutateAlpha, state.Score}
 }

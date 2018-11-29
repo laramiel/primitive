@@ -126,18 +126,20 @@ func (c *Ellipse) Mutate(plane *Plane, temp float64) {
 		maxr = c.MaxRadius
 	}
 	scale := 16 * temp
-	a := int(rnd.NormFloat64() * scale)
 	switch id {
-	case 0:
+	case 0: // Move
+		a := int(rnd.NormFloat64() * scale)
 		b := int(rnd.NormFloat64() * scale)
 		c.X = clampInt(c.X+a, 0, w-1)
 		c.Y = clampInt(c.Y+b, 0, h-1)
-	case 1:
+	case 1: // ResizeX
+		a := int(rnd.NormFloat64() * temp * float64(maxr))
 		c.Rx = clampInt(c.Rx+a, 1, maxr)
 		if c.EllipseType == EllipseCircle || c.EllipseType == EllipseCenteredCircle {
 			c.Ry = c.Rx
 		}
 	case 2:
+		a := int(rnd.NormFloat64() * temp * float64(maxr))
 		c.Ry = clampInt(c.Ry+a, 1, maxr)
 		if c.EllipseType == EllipseCircle || c.EllipseType == EllipseCenteredCircle {
 			c.Rx = c.Ry

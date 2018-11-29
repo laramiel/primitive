@@ -17,7 +17,6 @@ type Worker struct {
 	Heatmap     *Heatmap
 	Score       float64
 	Counter     int
-	MinZ, MaxZ  int
 	ColorPicker ColorPicker // Picks the best color for the input scanlines
 }
 
@@ -37,8 +36,6 @@ func NewWorker(target *image.RGBA, seed int64, picker ColorPicker) *Worker {
 			Rasterizer: raster.NewRasterizer(w, h),
 		},
 	}
-	worker.MinZ = 1
-	worker.MaxZ = 1
 	worker.Target = target
 	worker.Buffer = image.NewRGBA(target.Bounds())
 	worker.Heatmap = NewHeatmap(w, h)
@@ -96,10 +93,3 @@ func (worker *Worker) BestRandomState(factory shape.ShapeFactory, a, n int) *Sta
 	return bestState
 }
 
-func (worker *Worker) RandomZ() int {
-	z := 0
-	if worker.MaxZ > worker.MinZ {
-		z = worker.Plane.Rnd.Intn(worker.MaxZ - worker.MinZ)
-	}
-	return worker.MinZ + z
-}
