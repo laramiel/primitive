@@ -266,11 +266,17 @@ func (c *RotatedEllipse) mutateImpl(plane *Plane, temp float64, actions ActionTy
 	for {
 		switch rnd.Intn(3) {
 		case 0:
-			c.X = clamp(c.X+rnd.NormFloat64()*scale, 0, float64(w-1))
-			c.Y = clamp(c.Y+rnd.NormFloat64()*scale, 0, float64(h-1))
-		case 1:
+			if (actions & ActionMutate) == 0 {
+				continue
+			}
 			c.Rx = clamp(c.Rx+rnd.NormFloat64()*scale, 1, float64(maxr))
 			c.Ry = clamp(c.Ry+rnd.NormFloat64()*scale, 1, float64(maxr))
+		case 1:
+			if (actions & ActionTranslate) == 0 {
+				continue
+			}
+			c.X = clamp(c.X+rnd.NormFloat64()*scale, 0, float64(w-1))
+			c.Y = clamp(c.Y+rnd.NormFloat64()*scale, 0, float64(h-1))
 		case 2:
 			c.Angle = c.Angle + rnd.NormFloat64()*32*temp
 		}

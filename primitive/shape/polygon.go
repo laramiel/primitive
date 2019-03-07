@@ -86,7 +86,7 @@ func (p *Polygon) mutateImpl(plane *Plane, temp float64, rollback int, actions A
 		switch rnd.Intn(9) {
 		case 0:
 			if (actions & ActionMutate) != 0 {
-					// Move a point
+				// Move a point
 				i := rnd.Intn(p.Order)
 				a := rnd.NormFloat64() * scale
 				b := rnd.NormFloat64() * scale
