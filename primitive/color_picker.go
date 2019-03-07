@@ -113,28 +113,48 @@ func (s *BestAlpha) Select(target, current *image.RGBA, lines []shape.Scanline, 
 	return result
 }
 
-type selectedColors struct {
-	colors []Color
-	b      BestColor
+// ColorPalette allows you to restrict to a certain range of colors
+type ColorPalette struct {
+	hexStrings []string
+	rgbColors  []Color
+	b          BestColor
 }
 
-func (s *selectedColors) Select(target, current *image.RGBA, lines []shape.Scanline, alpha int) Color {
-	if len(s.colors) == 1 {
-		return s.colors[0]
-	}
-	best := s.b.Select(target, current, lines, alpha)
-
-	selected := best
-	var delta int = 256 * 256 * 256
-	for _, c := range s.colors {
+// closestColor returns the index of the closest color.
+func (cp *ColorPalette) closestColorIdx(c Color) int {
+	selected := 0
+	score := 100000.0
+	for i, c := range cp.rgbColors {
 		d := c.Delta(&best)
-		x := d.R + d.B + d.G
-		if x < delta {
-			selected = c
-			delta = x
+		// minimize the euclidian distance
+		x := math.Sqrt(d.R*d.R + d.B*d.B + d.G*d.G)
+		if x < score {
+			selected = i
+			score = x
 		}
 	}
 	return selected
+}
+
+// ClosestColor returns the closest RGB color in the current palette
+func (cp *ColorPalette) Select(target, current *image.RGBA, lines []shape.Scanline, alpha int) Color {
+	if len(s.rgbColors) == 1 {
+		return s.rgbColors[0]
+	}
+	best := cp.b.Select(target, current, lines, alpha)
+	i := cp.closestColorIdx(best)
+	return cp.rgbColors[i]
+}
+
+// NewColorPalette returns a new color palette
+func NewColorPalette(hexes []string) (cp *ColorPalette) {
+	cp = new(ColorPalette)
+	cp.hexStrings = hexes
+	cp.rgbColors = make([]Color, len(hexes))
+	for i, hex := range hexes {
+		cp.rgbColors[i] = MakeHexColor(hex)
+	}
+	return
 }
 
 func MakeColorPicker(config string) ColorPicker {
@@ -148,13 +168,9 @@ func MakeColorPicker(config string) ColorPicker {
 		return &BestAlpha{}
 	}
 
-	var colors []Color
-	for _, v := range strings.Split(config, ",") {
-		c := MakeHexColor(v)
-		colors = append(colors, c)
-	}
-	if len(colors) == 0 {
+	cp := NewColorPalette(strings.Split(config, ","))
+	if len(cp.colors) == 0 {
 		return &BestColor{}
 	}
-	return &selectedColors{colors, BestColor{}}
+	return cp
 }
