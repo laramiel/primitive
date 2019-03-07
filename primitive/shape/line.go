@@ -30,7 +30,7 @@ func (q *Line) Init(plane *Plane) {
 	q.X2 = randomW(plane)
 	q.Y2 = randomH(plane)
 	q.Width = 1.0 / 2
-	q.mutateImpl(plane, 1.0, 1)
+	q.mutateImpl(plane, 1.0, 1, ActionAny)
 }
 
 func (q *Line) Draw(dc *gg.Context, scale float64) {
@@ -54,10 +54,14 @@ func (q *Line) Copy() Shape {
 }
 
 func (q *Line) Mutate(plane *Plane, temp float64) {
-	q.mutateImpl(plane, temp, 10)
+	q.mutateImpl(plane, temp, 10, ActionAny)
 }
 
-func (q *Line) mutateImpl(plane *Plane, temp float64, rollback int) {
+func (q *Line) mutateImpl(plane *Plane, temp float64, rollback int, actions ActionType) {
+	if actions == ActionNone {
+		return
+	}
+
 	const R = math.Pi / 4.0
 	const m = 16
 	w := plane.W
@@ -68,16 +72,25 @@ func (q *Line) mutateImpl(plane *Plane, temp float64, rollback int) {
 	for {
 		switch rnd.Intn(LineMutate) {
 		case 0: // Move
+			if (actions & ActionMutate) == 0 {
+				continue
+			}
 			a := rnd.NormFloat64() * scale
 			b := rnd.NormFloat64() * scale
 			q.X1 = clamp(q.X1+a, -m, float64(w-1+m))
 			q.Y1 = clamp(q.Y1+b, -m, float64(h-1+m))
 		case 1:
+			if (actions & ActionMutate) == 0 {
+				continue
+			}
 			a := rnd.NormFloat64() * scale
 			b := rnd.NormFloat64() * scale
 			q.X2 = clamp(q.X2+a, -m, float64(w-1+m))
 			q.Y2 = clamp(q.Y2+b, -m, float64(h-1+m))
-		case 2: // Shift
+		case 2: // Translate
+			if (actions & ActionTranslate) == 0 {
+				continue
+			}
 			a := rnd.NormFloat64() * scale
 			b := rnd.NormFloat64() * scale
 			q.X1 = clamp(q.X1+a, -m, float64(w-1+m))
@@ -86,6 +99,9 @@ func (q *Line) mutateImpl(plane *Plane, temp float64, rollback int) {
 			q.Y2 = clamp(q.Y2+b, -m, float64(h-1+m))
 
 		case 3: // Rotate
+			if (actions & ActionRotate) == 0 {
+				continue
+			}
 			cx := (q.X1 + q.X2) / 2
 			cy := (q.Y1 + q.Y2) / 2
 			theta := rnd.NormFloat64() * temp * R

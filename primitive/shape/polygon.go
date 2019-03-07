@@ -9,6 +9,7 @@ import (
 	"github.com/golang/freetype/raster"
 )
 
+// Polygon represents a polygonal shape with Order vertices.
 type Polygon struct {
 	Order  int
 	Convex bool
@@ -32,7 +33,7 @@ func (p *Polygon) Init(plane *Plane) {
 		p.X[i] = p.X[0] + rnd.Float64()*40 - 20
 		p.Y[i] = p.Y[0] + rnd.Float64()*40 - 20
 	}
-	p.mutateImpl(plane, 1.0, 1)
+	p.mutateImpl(plane, 1.0, 2, ActionAny)
 }
 
 func (p *Polygon) Draw(dc *gg.Context, scale float64) {
@@ -66,10 +67,14 @@ func (p *Polygon) Copy() Shape {
 }
 
 func (p *Polygon) Mutate(plane *Plane, temp float64) {
-	p.mutateImpl(plane, temp, 10)
+	p.mutateImpl(plane, temp, 10, ActionAny)
 }
 
-func (p *Polygon) mutateImpl(plane *Plane, temp float64, rollback int) {
+func (p *Polygon) mutateImpl(plane *Plane, temp float64, rollback int, actions ActionType) {
+	if actions == ActionNone {
+		return
+	}
+
 	const R = math.Pi / 4.0
 	const m = 16
 	w := plane.W
@@ -80,8 +85,8 @@ func (p *Polygon) mutateImpl(plane *Plane, temp float64, rollback int) {
 	for repeat {
 		switch rnd.Intn(9) {
 		case 0:
-			{
-				// Move a point
+			if (actions & ActionMutate) != 0 {
+					// Move a point
 				i := rnd.Intn(p.Order)
 				a := rnd.NormFloat64() * scale
 				b := rnd.NormFloat64() * scale
@@ -99,7 +104,7 @@ func (p *Polygon) mutateImpl(plane *Plane, temp float64, rollback int) {
 				}
 			}
 		case 1:
-			{
+			if (actions & ActionMutate) != 0 {
 				// Swap a point
 				i := rnd.Intn(p.Order)
 				j := rnd.Intn(p.Order)
@@ -115,7 +120,7 @@ func (p *Polygon) mutateImpl(plane *Plane, temp float64, rollback int) {
 			}
 
 		case 2:
-			{
+			if (actions & ActionTranslate) != 0 {
 				// Shift all points
 				a := rnd.NormFloat64() * scale
 				b := rnd.NormFloat64() * scale
@@ -138,7 +143,7 @@ func (p *Polygon) mutateImpl(plane *Plane, temp float64, rollback int) {
 			}
 
 		case 3:
-			{
+			if (actions & ActionRotate) != 0 {
 				// Rotate all points
 				cx := 0.0
 				cy := 0.0

@@ -17,6 +17,7 @@ const (
 	EllipseFixedRadius
 )
 
+// An Ellipse shape.
 type Ellipse struct {
 	X, Y        int
 	Rx, Ry      int
@@ -110,9 +111,23 @@ func (c *Ellipse) Copy() Shape {
 }
 
 func (c *Ellipse) Mutate(plane *Plane, temp float64) {
+	c.mutateImpl(plane, temp, ActionAny)
+}
+
+func (c *Ellipse) mutateImpl(plane *Plane, temp float64, actions ActionType) {
+	if actions == ActionNone {
+		return
+	}
 	w := plane.W
 	h := plane.H
 	rnd := plane.Rnd
+
+	maxr := w - 1
+	if c.MaxRadius > 0 {
+		maxr = c.MaxRadius
+	}
+	scale := 16 * temp
+
 	var id int
 	if c.EllipseType == EllipseFixedRadius {
 		id = 0
@@ -121,29 +136,38 @@ func (c *Ellipse) Mutate(plane *Plane, temp float64) {
 	} else {
 		id = rnd.Intn(3)
 	}
-	maxr := w - 1
-	if c.MaxRadius > 0 {
-		maxr = c.MaxRadius
-	}
-	scale := 16 * temp
-	switch id {
-	case 0: // Move
-		a := int(rnd.NormFloat64() * scale)
-		b := int(rnd.NormFloat64() * scale)
-		c.X = clampInt(c.X+a, 0, w-1)
-		c.Y = clampInt(c.Y+b, 0, h-1)
-	case 1: // ResizeX
-		a := int(rnd.NormFloat64() * temp * float64(maxr))
-		c.Rx = clampInt(c.Rx+a, 1, maxr)
-		if c.EllipseType == EllipseCircle || c.EllipseType == EllipseCenteredCircle {
-			c.Ry = c.Rx
+	for {
+		switch id {
+		case 0: // Move
+			if (actions & ActionTranslate) == 0 {
+				continue
+			}
+			a := int(rnd.NormFloat64() * scale)
+			b := int(rnd.NormFloat64() * scale)
+			c.X = clampInt(c.X+a, 0, w-1)
+			c.Y = clampInt(c.Y+b, 0, h-1)
+		case 1: // Mutate X
+			if (actions & ActionMutate) == 0 {
+				continue
+			}
+			a := int(rnd.NormFloat64() * temp * float64(maxr))
+			c.Rx = clampInt(c.Rx+a, 1, maxr)
+			if c.EllipseType == EllipseCircle || c.EllipseType == EllipseCenteredCircle {
+				c.Ry = c.Rx
+			}
+		case 2:
+			if (actions & ActionMutate) == 0 {
+				continue
+			}
+			a := int(rnd.NormFloat64() * temp * float64(maxr))
+			c.Ry = clampInt(c.Ry+a, 1, maxr)
+			if c.EllipseType == EllipseCircle || c.EllipseType == EllipseCenteredCircle {
+				c.Rx = c.Ry
+			}
+			// TODO: Rotate?
+			// TODO: Scale?
 		}
-	case 2:
-		a := int(rnd.NormFloat64() * temp * float64(maxr))
-		c.Ry = clampInt(c.Ry+a, 1, maxr)
-		if c.EllipseType == EllipseCircle || c.EllipseType == EllipseCenteredCircle {
-			c.Rx = c.Ry
-		}
+		break
 	}
 }
 
@@ -223,6 +247,13 @@ func (c *RotatedEllipse) Copy() Shape {
 }
 
 func (c *RotatedEllipse) Mutate(plane *Plane, temp float64) {
+	c.mutateImpl(plane, temp, ActionAny)
+}
+
+func (c *RotatedEllipse) mutateImpl(plane *Plane, temp float64, actions ActionType) {
+	if actions == ActionNone {
+		return
+	}
 	w := plane.W
 	h := plane.H
 	rnd := plane.Rnd
@@ -232,15 +263,18 @@ func (c *RotatedEllipse) Mutate(plane *Plane, temp float64) {
 		maxr = c.MaxRadius
 	}
 	scale := 16 * temp
-	switch rnd.Intn(3) {
-	case 0:
-		c.X = clamp(c.X+rnd.NormFloat64()*scale, 0, float64(w-1))
-		c.Y = clamp(c.Y+rnd.NormFloat64()*scale, 0, float64(h-1))
-	case 1:
-		c.Rx = clamp(c.Rx+rnd.NormFloat64()*scale, 1, float64(maxr))
-		c.Ry = clamp(c.Ry+rnd.NormFloat64()*scale, 1, float64(maxr))
-	case 2:
-		c.Angle = c.Angle + rnd.NormFloat64()*32*temp
+	for {
+		switch rnd.Intn(3) {
+		case 0:
+			c.X = clamp(c.X+rnd.NormFloat64()*scale, 0, float64(w-1))
+			c.Y = clamp(c.Y+rnd.NormFloat64()*scale, 0, float64(h-1))
+		case 1:
+			c.Rx = clamp(c.Rx+rnd.NormFloat64()*scale, 1, float64(maxr))
+			c.Ry = clamp(c.Ry+rnd.NormFloat64()*scale, 1, float64(maxr))
+		case 2:
+			c.Angle = c.Angle + rnd.NormFloat64()*32*temp
+		}
+		break
 	}
 }
 

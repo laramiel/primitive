@@ -92,4 +92,3 @@ func (worker *Worker) BestRandomState(factory shape.ShapeFactory, a, n int) *Sta
 	}
 	return bestState
 }
-

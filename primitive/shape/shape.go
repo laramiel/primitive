@@ -42,9 +42,20 @@ const (
 	ShapeTypeEllipse
 	ShapeTypeCircle
 	ShapeTypeRotatedRectangle
-	ShapeTypeLine
 	ShapeTypeQuadratic
+	ShapeTypeCubic
+	ShapeTypeLine
 	ShapeTypeRotatedEllipse
-	ShapeTypePolygon // 9
+	ShapeTypePolygon // 10
 )
 
+type ActionType int
+
+const (
+	ActionNone      ActionType = 0
+	ActionMutate    ActionType = 1
+	ActionTranslate ActionType = 2
+	ActionRotate    ActionType = 4
+	ActionScale     ActionType = 8
+	ActionAny       ActionType = 8 + 4 + 2 + 1
+)

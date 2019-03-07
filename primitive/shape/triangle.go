@@ -8,6 +8,7 @@ import (
 	"github.com/golang/freetype/raster"
 )
 
+// Triangle represents a triangular shape
 type Triangle struct {
 	X1, Y1  float64
 	X2, Y2  float64
@@ -33,7 +34,7 @@ func (t *Triangle) Init(plane *Plane) {
 	t.Y2 = t.Y1 + rnd.NormFloat64()*32
 	t.X3 = t.X1 + rnd.NormFloat64()*32
 	t.Y3 = t.Y1 + rnd.NormFloat64()*32
-	t.mutateImpl(plane, 1.0, 2)
+	t.mutateImpl(plane, 1.0, 2, ActionAny)
 }
 
 func (t *Triangle) Draw(dc *gg.Context, scale float64) {
@@ -56,10 +57,14 @@ func (t *Triangle) Copy() Shape {
 }
 
 func (t *Triangle) Mutate(plane *Plane, temp float64) {
-	t.mutateImpl(plane, temp, 100)
+	t.mutateImpl(plane, temp, 100, ActionAny)
 }
 
-func (t *Triangle) mutateImpl(plane *Plane, temp float64, rollback int) {
+func (t *Triangle) mutateImpl(plane *Plane, temp float64, rollback int, actions ActionType) {
+	if actions == ActionNone {
+		return
+	}
+
 	const R = math.Pi / 4.0
 	const m = 16
 	w := float64(plane.W - 1 + m)
@@ -67,26 +72,39 @@ func (t *Triangle) mutateImpl(plane *Plane, temp float64, rollback int) {
 	rnd := plane.Rnd
 	scale := 16 * temp
 	save := *t
+
 	for {
 		switch rnd.Intn(5) {
-		// Move.
+		// Mutate.
 		case 0:
+			if (actions & ActionMutate) == 0 {
+				continue
+			}
 			a := rnd.NormFloat64() * scale
 			b := rnd.NormFloat64() * scale
 			t.X1 = clamp(t.X1+a, -m, w)
 			t.Y1 = clamp(t.Y1+b, -m, h)
 		case 1:
+			if (actions & ActionMutate) == 0 {
+				continue
+			}
 			a := rnd.NormFloat64() * scale
 			b := rnd.NormFloat64() * scale
 			t.X2 = clamp(t.X2+a, -m, w)
 			t.Y2 = clamp(t.Y2+b, -m, h)
 		case 2:
+			if (actions & ActionMutate) == 0 {
+				continue
+			}
 			a := rnd.NormFloat64() * scale
 			b := rnd.NormFloat64() * scale
 			t.X3 = clamp(t.X3+a, -m, w)
 			t.Y3 = clamp(t.Y3+b, -m, h)
 
-		case 3: // Shift
+		case 3: // Translate
+			if (actions & ActionTranslate) == 0 {
+				continue
+			}
 			a := rnd.NormFloat64() * scale
 			b := rnd.NormFloat64() * scale
 			t.X1 = clamp(t.X1+a, -m, w)
@@ -97,6 +115,9 @@ func (t *Triangle) mutateImpl(plane *Plane, temp float64, rollback int) {
 			t.Y3 = clamp(t.Y3+b, -m, h)
 
 		case 4: // Rotate
+			if (actions & ActionRotate) == 0 {
+				continue
+			}
 			cx := (t.X1 + t.X2 + t.X3) / 3
 			cy := (t.Y1 + t.Y2 + t.Y3) / 3
 			theta := rnd.NormFloat64() * temp * R

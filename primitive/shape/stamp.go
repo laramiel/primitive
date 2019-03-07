@@ -22,7 +22,7 @@ func NewStamp() *Stamp {
 func (s *Stamp) Init(plane *Plane) {
 	s.X1 = randomW(plane)
 	s.Y1 = randomH(plane)
-	s.mutateImpl(plane, 1.0, 1)
+	s.mutateImpl(plane, 1.0, 1, ActionAny)
 }
 
 func (s *Stamp) Draw(dc *gg.Context, scale float64) {
@@ -56,10 +56,14 @@ func (s *Stamp) Copy() Shape {
 }
 
 func (s *Stamp) Mutate(plane *Plane, temp float64) {
-	s.mutateImpl(plane, temp, 10)
+	s.mutateImpl(plane, temp, 10, ActionAny)
 }
 
-func (s *Stamp) mutateImpl(plane *Plane, temp float64, rollback int) {
+func (s *Stamp) mutateImpl(plane *Plane, temp float64, rollback int, actions ActionType) {
+	if actions == ActionNone {
+		return
+	}
+
 	const R = math.Pi / 4.0
 	const m = 16
 	w := float64(plane.W - 1 + m)

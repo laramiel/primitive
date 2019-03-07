@@ -11,6 +11,7 @@ type JsonShape struct {
 	RadialLine       *RadialLine       `json:",omitempty"`
 	Polygon          *Polygon          `json:",omitempty"`
 	Quadratic        *Quadratic        `json:",omitempty"`
+	Cubic            *Cubic            `json:",omitempty"`
 	Rectangle        *Rectangle        `json:",omitempty"`
 	RotatedRectangle *RotatedRectangle `json:",omitempty"`
 	Triangle         *Triangle         `json:",omitempty"`
@@ -34,6 +35,9 @@ func (s JsonShape) toShape() Shape {
 	}
 	if s.Quadratic != nil {
 		return s.Quadratic
+	}
+	if s.Cubic != nil {
+		return s.Cubic
 	}
 	if s.Rectangle != nil {
 		return s.Rectangle
@@ -63,6 +67,8 @@ func makeJsonShape(input Shape) JsonShape {
 		s.Polygon = v
 	case *Quadratic:
 		s.Quadratic = v
+	case *Cubic:
+		s.Cubic = v
 	case *Rectangle:
 		s.Rectangle = v
 	case *RotatedRectangle:

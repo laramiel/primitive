@@ -53,6 +53,8 @@ func (factory *BasicShapes) MakeShape(plane *Plane) Shape {
 		s = NewLine()
 	case ShapeTypeQuadratic:
 		s = NewQuadratic()
+	case ShapeTypeCubic:
+		s = NewCubic()
 	case ShapeTypeRotatedEllipse:
 		s = NewRotatedEllipse()
 	case ShapeTypePolygon:
